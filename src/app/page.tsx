@@ -1,26 +1,14 @@
 import Image from "next/image";
 import styles from "./page.module.css";
 
-export default function Home() {
-
-  const sendToGoogleAnalytics = () => {
-    (window as any).dataLayer = (window as any).dataLayer || [];
-    (window as any).dataLayer.push({
-      event: "event",
-      eventCategory: "click",
-      eventAction: "click",
-      eventLabel: "Logo",
-      eventValue: 1,
-    });
-  }
-
-
+export default function Home() { 
+  
   return (
     <main className={styles.main}>
       <div className={styles.center}>
         <div className="container">
           <div
-            onClick={sendToGoogleAnalytics}
+            id="logo"
             className="stack"
             style={{ "--stacks": 3 } as React.CSSProperties}
           >
