@@ -23,8 +23,12 @@ export default function Home() {
             </span>
           </div>
           <span className="right">Dev</span>
+
         </div>
       </div>
+       <div className="container">
+          <a  href="/games/shooter/index.html" className="button button-primary"> Thank for visiting  enjoy the game ? <span className="emoji">🚀</span></a>
+       </div>
     </main>
   );
 }

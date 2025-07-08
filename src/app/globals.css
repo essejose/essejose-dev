@@ -204,3 +204,24 @@ body {
     transform: none;
   }
 }
+
+
+/* button  emoji create animation */
+.emoji {
+  display: inline-block; 
+  animation: rotate 2s linear infinite;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.button {
+  text-align: center;
+  font-size: 0.8em;
+}
