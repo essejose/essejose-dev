@@ -48,9 +48,9 @@
         const touchX = touch.clientX - rect.left;
         const touchY = touch.clientY - rect.top;
 
-        // Atribui posição diretamente (ou use interpolação se quiser suavidade)
-        game.player.x = touchX - game.player.width / 2;
-        game.player.y = touchY - game.player.height / 2;
+        // Define o alvo para movimento suave
+        game.player.targetX = touchX - game.player.width / 2;
+        game.player.targetY = touchY - game.player.height / 2;
       }
       function resizeCanvas() {
         canvas.width = window.innerWidth;
@@ -579,6 +579,11 @@
           this.rapidFireTimer = 0;
           this.orbitalDrones = [];
 
+          // Propriedades para movimento suave no mobile
+          this.targetX = null;
+          this.targetY = null;
+          this.moveSpeed = 0.15; // Velocidade de interpolação (0.1 = mais lento, 0.3 = mais rápido)
+
           // Armas
           this.primaryWeapon = new WeaponInstance(WeaponTypes.SPREAD);
           this.auxiliaryWeapons = [
@@ -624,6 +629,24 @@
         }
 
         update() {
+          // Movimento suave para mobile
+          if (this.targetX !== null && this.targetY !== null) {
+            const dx = this.targetX - this.x;
+            const dy = this.targetY - this.y;
+            
+            // Interpolação suave
+            this.x += dx * this.moveSpeed;
+            this.y += dy * this.moveSpeed;
+            
+            // Para quando estiver próximo o suficiente do alvo
+            if (Math.abs(dx) < 2 && Math.abs(dy) < 2) {
+              this.x = this.targetX;
+              this.y = this.targetY;
+              this.targetX = null;
+              this.targetY = null;
+            }
+          }
+
           if (controlMode === CONTROLSMODES.HELICOPTER) {
             if (keys["Space"]) {
               this.velocity += this.lift;
@@ -1917,6 +1940,11 @@
           if (this.gameOver) {
             ctx.fillStyle = "red";
             ctx.font = "20px Arial";
+            // event gtag
+            gtag('event', 'game_over', {
+              'event_category': 'game',
+              'event_label': 'game_over'
+            });
             ctx.fillText(
               "💥 GAME OVER 💥",
               canvas.width / 2 -  85,
