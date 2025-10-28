@@ -12,13 +12,13 @@
     <meta name="google" content="notranslate">
     <meta name="google-site-verification" content="google-site-verification=google-site-verification">
     <link rel="canonical" href="https://essejose.com/games/shooter">
-    <script src="https://www.googletagmanager.com/gtag/js?id=G-W6NSHMJS"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-W6NSHMJS');
-    </script>
+    <!-- Google Tag Manager -->
+    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-W6NSHMJS');</script>
+    <!-- End Google Tag Manager -->
     <style>
       html,
       body {
@@ -33,6 +33,10 @@
     </style>
   </head>
   <body>
+    <!-- Google Tag Manager (noscript) -->
+    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-W6NSHMJS"
+    height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+    <!-- End Google Tag Manager (noscript) -->
     <canvas id="game"></canvas>
     <script>
       const canvas = document.getElementById("game");
@@ -2100,10 +2104,13 @@
           if (this.gameOver) {
             ctx.fillStyle = "red";
             ctx.font = "20px Arial";
-            // event gtag
-            gtag('event', 'game_over', {
+            // Envia evento para Google Tag Manager
+            window.dataLayer = window.dataLayer || [];
+            window.dataLayer.push({
+              'event': 'game_over',
               'event_category': 'game',
-              'event_label': 'game_over'
+              'event_label': 'helicopter_shooter',
+              'game_score': this.score
             });
             ctx.fillText(
               "💥 GAME OVER 💥",
