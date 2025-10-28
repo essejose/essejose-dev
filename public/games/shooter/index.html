@@ -61,7 +61,7 @@
       window.addEventListener("resize", resizeCanvas);
 
       const ASSETS = {
-        helicopter: "https://placehold.co/100x60/ffaaaa/000?text=\ud83d\ude81",
+        helicopter: "./images/player.png",
         grass: "https://placehold.co/20x20/88cc88/000?text=G",
         health: "https://placehold.co/20x20/ff66cc/000?text=H",
       };
@@ -565,7 +565,7 @@
           this.x = 100;
           this.y = canvas.height * 0.5;
           this.width = 80;
-          this.height = 40;
+          this.height = 80;
           this.velocity = 0;
           this.gravity = 0.3;
           this.lift = -0.6;
@@ -584,6 +584,23 @@
           this.targetY = null;
           this.moveSpeed = 0.15; // Velocidade de interpolação (0.1 = mais lento, 0.3 = mais rápido)
 
+          // Propriedades para inclinação (tilt) ao se mover
+          this.tiltAngle = 0; // Ângulo atual de inclinação
+          this.maxTilt = 0.15; // Inclinação máxima em radianos (~8 graus)
+          this.tiltSpeed = 0.1; // Velocidade de transição da inclinação
+          this.prevX = this.x; // Posição anterior para calcular movimento
+          this.prevY = this.y;
+
+          // Propriedades para animação da hélice traseira
+          this.propellerAngle = 0;
+          this.propellerSpeed = 0.3; // Velocidade de rotação da hélice
+          this.propellerRadius = 8; // Raio da hélice
+
+          // Propriedades para animação do rotor principal
+          this.mainRotorAngle = 0;
+          this.mainRotorSpeed = 0.2; // Velocidade de rotação do rotor principal
+          this.mainRotorRadius = 30; // Raio do rotor principal
+
           // Armas
           this.primaryWeapon = new WeaponInstance(WeaponTypes.SPREAD);
           this.auxiliaryWeapons = [
@@ -592,6 +609,23 @@
         }
 
         draw() {
+          // Salva o estado do canvas antes de aplicar rotação
+          ctx.save();
+          
+          // Define o ponto de rotação no centro do helicóptero
+          const centerX = this.x + this.width / 2;
+          const centerY = this.y + this.height / 2;
+          
+          // Move para o centro do helicóptero
+          ctx.translate(centerX, centerY);
+          
+          // Aplica a rotação (inclinação)
+          ctx.rotate(this.tiltAngle);
+          
+          // Move de volta para desenhar o helicóptero
+          ctx.translate(-centerX, -centerY);
+          
+          // Desenha o helicóptero com transparência se invencível
           if (
             this.invincible &&
             Math.floor(this.invincibilityTimer / 5) % 2 === 0
@@ -607,6 +641,16 @@
           );
           ctx.globalAlpha = 1.0;
 
+          // Desenha a hélice traseira animada
+          this.drawPropeller();
+          
+          // Desenha o rotor principal animado
+          this.drawMainRotor();
+
+          // Restaura o estado do canvas (remove a rotação)
+          ctx.restore();
+
+          // Desenha a barra de vida (sem rotação)
           const barWidth = 60;
           const barHeight = 8;
           const barX = this.x;
@@ -628,6 +672,90 @@
           }
         }
 
+        drawPropeller() {
+          const centerX = this.x + this.width / 27;
+          const centerY = this.y + this.height / 2.7;
+          
+          // Salva o estado atual do canvas
+          ctx.save();
+          
+          // Move o ponto de rotação para o centro do player
+          ctx.translate(centerX, centerY);
+          
+          // Rotaciona baseado no ângulo da hélice
+          ctx.rotate(this.propellerAngle);
+          
+          // Desenha as pás da hélice
+          ctx.strokeStyle = "#333";
+          ctx.lineWidth = 2;
+          
+          // Pá 1 (horizontal)
+          ctx.beginPath();
+          ctx.moveTo(-this.propellerRadius, 0);
+          ctx.lineTo(this.propellerRadius, 0);
+          ctx.stroke();
+          
+          // Pá 2 (vertical)
+          ctx.beginPath();
+          ctx.moveTo(0, -this.propellerRadius);
+          ctx.lineTo(0, this.propellerRadius);
+          ctx.stroke();
+          
+          // Desenha o centro da hélice
+          ctx.fillStyle = "#666";
+          ctx.beginPath();
+          ctx.arc(0, 0, .5, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // Restaura o estado do canvas
+          ctx.restore();
+        }
+
+        drawMainRotor() {
+          const centerX = this.x + 47;
+          const centerY = this.y + 25; // Posiciona acima do helicóptero
+          
+          // Salva o estado atual do canvas
+          ctx.save();
+          
+          // Move o ponto de rotação para o centro do rotor
+          ctx.translate(centerX, centerY);
+          
+          // Calcula a opacidade baseada no ângulo para simular o efeito de "aparecer e sumir" (flicker/blur)
+          // A opacidade irá oscilar entre 0.3 e 0.8, dando a impressão de movimento rápido.
+          const minOpacity = 0.3;
+          const maxOpacity = 0.8;
+          const opacity = minOpacity + (maxOpacity - minOpacity) * Math.abs(Math.sin(this.mainRotorAngle * 2)); 
+          
+          ctx.globalAlpha = opacity; // Aplica a transparência
+
+          // Desenha as pás do rotor principal como uma linha horizontal fixa
+          ctx.strokeStyle = "#444";
+          ctx.lineWidth = 4;
+          
+          // Pá 1 (horizontal) - parte esquerda
+          ctx.beginPath();
+          ctx.moveTo(-this.mainRotorRadius, 0);
+          ctx.lineTo(-2, 0); // Desenha até a esquerda do centro
+          ctx.stroke();
+
+          // Pá 2 (horizontal) - parte direita
+          ctx.beginPath();
+          ctx.moveTo(2, 0); // Desenha a partir da direita do centro
+          ctx.lineTo(this.mainRotorRadius, 0);
+          ctx.stroke();
+          
+          // Desenha o centro do rotor
+          ctx.beginPath();
+          ctx.arc(0, 0, 2, 0, Math.PI * 2);
+          ctx.fillStyle = "#555";
+          ctx.fill();
+
+          ctx.globalAlpha = 1; // Restaura a opacidade global para não afetar outros desenhos
+          // Restaura o estado do canvas
+          ctx.restore();
+        }
+
         update() {
           // Movimento suave para mobile
           if (this.targetX !== null && this.targetY !== null) {
@@ -646,6 +774,38 @@
               this.targetY = null;
             }
           }
+
+          // Atualiza animação da hélice traseira
+          this.propellerAngle += this.propellerSpeed;
+          
+          // Atualiza animação do rotor principal
+          this.mainRotorAngle += this.mainRotorSpeed;
+
+          // Calcula inclinação baseada no movimento horizontal
+          const velocityX = this.x - this.prevX;
+          const velocityY = this.y - this.prevY;
+          
+          // Inclinação para frente quando movendo para direita
+          let targetTilt = 0;
+          if (velocityX > 0.5) {
+            targetTilt = this.maxTilt; // Inclina para frente
+          } else if (velocityX < -0.5) {
+            targetTilt = -this.maxTilt * 0.5; // Inclina levemente para trás
+          }
+          
+          // Inclinação adicional baseada no movimento vertical
+          if (velocityY < -0.5) {
+            targetTilt += this.maxTilt * 0.3; // Inclina mais para frente ao subir
+          } else if (velocityY > 0.5) {
+            targetTilt -= this.maxTilt * 0.3; // Inclina para trás ao descer
+          }
+          
+          // Suaviza a transição do ângulo de inclinação
+          this.tiltAngle += (targetTilt - this.tiltAngle) * this.tiltSpeed;
+          
+          // Atualiza posição anterior
+          this.prevX = this.x;
+          this.prevY = this.y;
 
           if (controlMode === CONTROLSMODES.HELICOPTER) {
             if (keys["Space"]) {
