@@ -420,6 +420,7 @@
 
       const ASSETS = {
         helicopter: "./images/player.png",
+        inimigo1: "./images/inimigos/inimigo1.png",
         grass: "https://placehold.co/20x20/88cc88/000?text=G",
         health: "https://placehold.co/20x20/ff66cc/000?text=H",
         parallax1: "./images/parallax-2/6.png",
@@ -444,6 +445,11 @@
             controlMode === CONTROLSMODES.HELICOPTER
               ? CONTROLSMODES.PLANE
               : CONTROLSMODES.HELICOPTER;
+        }
+        // Ativa/desativa modo debug com tecla K
+        if (e.code === "KeyK") {
+          game.debug = !game.debug;
+          console.log("Debug mode:", game.debug ? "ON" : "OFF");
         }
       });
 
@@ -672,7 +678,7 @@
       class CountdownSystem {
         constructor() {
           this.active = false;
-          this.count = 3;
+          this.count = 2;
           this.timer = 0;
           this.callback = null;
           this.message = "";
@@ -680,7 +686,7 @@
 
         start(callback, startMessage = "GET READY!") {
           this.active = true;
-          this.count = 3;
+          this.count = 2;
           this.timer = 60; // 1 segundo por número
           this.callback = callback;
           this.message = startMessage;
@@ -2027,24 +2033,84 @@
           this.y += this.vy;
         }
       }
+      // Classe para partículas de chama da turbina
+      class FlameParticle {
+        constructor(x, y) {
+          this.x = x;
+          this.y = y;
+          this.vx = Math.random() * 2 + 1; // Move para a direita (trás da nave que vai para esquerda)
+          this.vy = (Math.random() - 0.5) * 1; // Movimento vertical aleatório
+          this.size = Math.random() * 1 + 2; // Tamanho entre 3-9
+          this.life = 15; // Vida da partícula em frames
+          this.maxLife = this.life;
+          // Cores variadas para o fogo
+          const colors = ['#FF4500', '#FF6347', '#FF8C00', '#FFD700', '#FFA500', '#FF0000'];
+          this.color = colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        update() {
+          this.x += this.vx;
+          this.y += this.vy;
+          this.life--;
+          this.size *= 0.95; // Diminui gradualmente
+        }
+
+        draw() {
+          const alpha = this.life / this.maxLife;
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = this.color;
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        get dead() {
+          return this.life <= 0;
+        }
+      }
+
       class Enemy {
         constructor(x, y) {
           this.x = x;
           this.y = y;
-          this.width = 20;
-          this.height = 60;
+          this.width = 50;
+          this.height = 50;
           this.speed = 2;
           this.cooldown = Math.random() * 180 + 60;
           this.damage = 1;
+          this.flameParticles = []; // Array de partículas de chama
+          this.flameSpawnCounter = 0; // Contador para spawn de partículas
+          // Balanço vertical
+          this.wobbleOffset = Math.random() * Math.PI * 2; // Offset aleatório para variação
+          this.wobbleSpeed = 0.06; // Velocidade do balanço
+          this.wobbleAmplitude = 15; // Amplitude do balanço (pixels)
+          this.baseY = y; // Posição Y base
+          this.wobbleCounter = 0; // Contador para animação
         }
 
         draw() {
-          ctx.fillStyle = "#594700";
-          ctx.fillRect(this.x, this.y, this.width, this.height);
+          // Desenha partículas de chama primeiro (atrás do inimigo)
+          this.flameParticles.forEach(p => p.draw());
+          
+          // Desenha o inimigo
+          if (IMAGES.inimigo1 && IMAGES.inimigo1.complete) {
+            ctx.drawImage(IMAGES.inimigo1, this.x, this.y, this.width, this.height);
+          } else {
+            // Fallback caso a imagem não carregue
+            ctx.fillStyle = "#594700";
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+          }
         }
 
         update() {
           this.x -= this.speed;
+          
+          // Balanço vertical suave
+          this.wobbleCounter += this.wobbleSpeed;
+          this.y = this.baseY + Math.sin(this.wobbleCounter + this.wobbleOffset) * this.wobbleAmplitude;
+          
           this.cooldown--;
           if (this.cooldown <= 0) {
             game.enemyProjectiles.push(
@@ -2052,6 +2118,25 @@
             );
             this.cooldown = Math.random() * 180 + 60;
           }
+          
+          // Sistema de partículas de chama da turbina
+          this.flameSpawnCounter++;
+          if (this.flameSpawnCounter >= 3) { // Cria partículas a cada 3 frames
+            this.flameSpawnCounter = 0;
+            // Posição da turbina (traseira do inimigo, centro vertical)
+            const turbineX = this.x + this.width  // Traseira da nave
+            const turbineY = this.y + this.height / 2; // Centro vertical
+            
+            // Cria 2-3 partículas por vez para um efeito mais denso
+            const particleCount = Math.floor(Math.random() * 2) + 2;
+            for (let i = 0; i < particleCount; i++) {
+              this.flameParticles.push(new FlameParticle(turbineX, turbineY + (Math.random() - 0.5) * 10));
+            }
+          }
+          
+          // Atualiza e remove partículas mortas
+          this.flameParticles.forEach(p => p.update());
+          this.flameParticles = this.flameParticles.filter(p => !p.dead);
         }
       }
 
@@ -2798,6 +2883,7 @@
       }
 
       const game = window.game = {
+        debug: false, // Modo debug (ativa/desativa informações na tela)
         player: new Player(),
         projectiles: [],
         enemyProjectiles: [],
@@ -3425,29 +3511,32 @@
           ctx.textBaseline = "middle";
           ctx.fillText(this.coins, coinX + 30, coinY + 10);
 
-          ctx.fillStyle = "black";
-          ctx.font = "14px Arial";
-          ctx.fillText(
-            "Enemies: " + this.enemies.length,
-            canvas.width - 150,
-            30
-          );
-          ctx.fillText(
-            "Projectiles: " + this.projectiles.length,
-            canvas.width - 150,
-            50
-          );
-          ctx.fillText("FPS: " + this.fps, canvas.width - 150, 70);
-          ctx.fillText(
-            "Damage: " + this.player.primaryWeapon.damage,
-            canvas.width - 150,
-            90
-          );
-          ctx.fillText(
-            "Cooldown: " + this.player.primaryWeapon.cooldown,
-            canvas.width - 150,
-            110
-          );
+          // Informações de debug (só exibe se debug estiver ativo)
+          if (this.debug) {
+            ctx.fillStyle = "black";
+            ctx.font = "14px Arial";
+            ctx.fillText(
+              "Enemies: " + this.enemies.length,
+              canvas.width - 150,
+              30
+            );
+            ctx.fillText(
+              "Projectiles: " + this.projectiles.length,
+              canvas.width - 150,
+              50
+            );
+            ctx.fillText("FPS: " + this.fps, canvas.width - 150, 70);
+            ctx.fillText(
+              "Damage: " + this.player.primaryWeapon.damage,
+              canvas.width - 150,
+              90
+            );
+            ctx.fillText(
+              "Cooldown: " + this.player.primaryWeapon.cooldown,
+              canvas.width - 150,
+              110
+            );
+          }
 
           // Desenha o combo
           this.comboSystem.draw(ctx);
