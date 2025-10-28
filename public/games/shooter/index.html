@@ -1687,6 +1687,7 @@
         fps: 60,
         lastFrameTime: 0,
         gameOver: false,
+        gameOverEventSent: false,
         damageTexts: [],
         miniBoss: null,
         bossTimer: 2500,
@@ -1723,6 +1724,7 @@
           );
           this.score = 0;
           this.gameOver = false;
+          this.gameOverEventSent = false;
           this.damageTexts = [];
         },
 
@@ -2104,14 +2106,17 @@
           if (this.gameOver) {
             ctx.fillStyle = "red";
             ctx.font = "20px Arial";
-            // Envia evento para Google Tag Manager
-            window.dataLayer = window.dataLayer || [];
-            window.dataLayer.push({
-              'event': 'game_over',
-              'event_category': 'game',
-              'event_label': 'helicopter_shooter',
-              'game_score': this.score
-            });
+            // Envia evento para Google Tag Manager apenas uma vez
+            if (!this.gameOverEventSent) {
+              window.dataLayer = window.dataLayer || [];
+              window.dataLayer.push({
+                'event': 'game_over',
+                'event_category': 'game',
+                'event_label': 'helicopter_shooter',
+                'game_score': this.score
+              });
+              this.gameOverEventSent = true;
+            }
             ctx.fillText(
               "💥 GAME OVER 💥",
               canvas.width / 2 -  85,
