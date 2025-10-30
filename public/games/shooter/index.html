@@ -311,10 +311,102 @@
         align-items: center;
       }
       
+      /* Painel de Desenvolvedor */
+      #devPanel {
+        position: fixed;
+        right: 0;
+        top: 0;
+        width: 300px;
+        height: 100vh;
+        background: rgba(20, 20, 30, 0.98);
+        border-left: 3px solid #00ff00;
+        z-index: 2000;
+        overflow-y: auto;
+        font-family: 'Courier New', monospace;
+      }
+      
+      #devPanelHeader {
+        background: rgba(0, 255, 0, 0.2);
+        padding: 15px;
+        border-bottom: 2px solid #00ff00;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      
+      #devPanelHeader h3 {
+        margin: 0;
+        color: #00ff00;
+        font-size: 18px;
+      }
+      
+      #closeDevPanel {
+        background: #ff0000;
+        color: white;
+        border: none;
+        padding: 5px 12px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 18px;
+        font-weight: bold;
+      }
+      
+      #closeDevPanel:hover {
+        background: #cc0000;
+      }
+      
+      #devPanelContent {
+        padding: 10px;
+      }
+      
+      .devSection {
+        margin-bottom: 20px;
+        border-bottom: 1px solid rgba(0, 255, 0, 0.3);
+        padding-bottom: 15px;
+      }
+      
+      .devSection h4 {
+        color: #00ff00;
+        margin: 10px 0;
+        font-size: 14px;
+      }
+      
+      .devBtn {
+        width: 100%;
+        background: rgba(0, 255, 0, 0.2);
+        border: 1px solid #00ff00;
+        color: #00ff00;
+        padding: 10px;
+        margin: 5px 0;
+        border-radius: 5px;
+        cursor: pointer;
+        font-family: 'Courier New', monospace;
+        font-size: 12px;
+        transition: all 0.2s;
+      }
+      
+      .devBtn:hover {
+        background: rgba(0, 255, 0, 0.4);
+        transform: translateX(-5px);
+      }
+      
+      .devBtn:active {
+        background: rgba(0, 255, 0, 0.6);
+      }
+      
       @media (max-width: 600px) {
         #shopContent {
           padding: 20px;
           max-width: 95%;
+        }
+        
+        #devPanel {
+          width: 100%;
+          height: 50vh;
+          bottom: 0;
+          top: auto;
+          border-left: none;
+          border-top: 3px solid #00ff00;
         }
         
         #shopContent h2 {
@@ -337,6 +429,58 @@
     height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <!-- End Google Tag Manager (noscript) -->
     <canvas id="game"></canvas>
+    
+    <!-- Painel de Desenvolvedor -->
+    <div id="devPanel" style="display: none;">
+      <div id="devPanelHeader">
+        <h3>🛠️ DEV PANEL</h3>
+        <button id="closeDevPanel">✕</button>
+      </div>
+      <div id="devPanelContent">
+        <div class="devSection">
+          <h4>⚙️ Controles</h4>
+          <button class="devBtn" onclick="DevTools.togglePause()">⏯️ Pause/Play</button>
+          <button class="devBtn" onclick="DevTools.clearEnemies()">🗑️ Limpar Inimigos</button>
+          <button class="devBtn" onclick="DevTools.addCoins(100)">💰 +100 Moedas</button>
+          <button class="devBtn" onclick="DevTools.forceDeath()" style="background: #ff4444;">💀 Testar Morte</button>
+        </div>
+        
+        <div class="devSection">
+          <h4>👾 Inimigos Básicos</h4>
+          <button class="devBtn" onclick="DevTools.spawnEnemy('Enemy')">Inimigo Padrão</button>
+          <button class="devBtn" onclick="DevTools.spawnEnemy('DroneEnemy')">Drone (Formação)</button>
+        </div>
+        
+        <div class="devSection">
+          <h4>🚁 Inimigos Especiais</h4>
+          <button class="devBtn" onclick="DevTools.spawnEnemy('BomberEnemy')">Bomber</button>
+          <button class="devBtn" onclick="DevTools.spawnEnemy('SniperEnemy')">Sniper</button>
+          <button class="devBtn" onclick="DevTools.spawnEnemy('DiveEnemy')">Dive</button>
+          <button class="devBtn" onclick="DevTools.spawnEnemy('ShieldedEnemy')">Shielded</button>
+        </div>
+        
+        <div class="devSection">
+          <h4>🦾 Chefes</h4>
+          <button class="devBtn" onclick="DevTools.spawnEnemy('MiniBoss')">Mini Boss</button>
+          <button class="devBtn" onclick="DevTools.spawnEnemy('Tank')">Tank</button>
+        </div>
+        
+        <div class="devSection">
+          <h4>🎯 Formações</h4>
+          <button class="devBtn" onclick="DevTools.spawnFormation('arrow')">Formação Seta</button>
+          <button class="devBtn" onclick="DevTools.spawnFormation('drone')">Formação Drone</button>
+        </div>
+        
+        <div class="devSection">
+          <h4>📊 Info</h4>
+          <div id="devInfo" style="font-size: 12px; color: #ccc;">
+            Enemies: <span id="devEnemyCount">0</span><br>
+            Projectiles: <span id="devProjectileCount">0</span><br>
+            Wave: <span id="devWaveCount">1</span>
+          </div>
+        </div>
+      </div>
+    </div>
     
     <!-- Botão flutuante da loja -->
     <div id="shopButton">💰</div>
@@ -383,6 +527,43 @@
     </div>
     
     <script>
+      /*
+      ╔═══════════════════════════════════════════════════════════════════╗
+      ║                    HELICOPTER SHOOTER GAME                         ║
+      ║                     Estrutura do Código                            ║
+      ╚═══════════════════════════════════════════════════════════════════╝
+      
+      📑 ÍNDICE DE SEÇÕES (use Ctrl+F para navegar):
+      
+      [01] INICIALIZAÇÃO E CANVAS
+      [02] ASSETS E RECURSOS (sprites, sons, parallax)
+      [03] UTILITÁRIOS (colisão, física, efeitos)
+      [04] PARTÍCULAS (FlameParticle, ExplosionParticle)
+      [05] SISTEMA DE TEXTO (DamageText)
+      [06] PROJÉTEIS (Projectile, EnemyProjectile, etc)
+      [07] POWER-UPS E MOEDAS
+      [08] ARMAS (WeaponTypes, AuxiliaryWeaponTypes)
+      [09] JOGADOR (Player class)
+      [10] COMPONENTES REUTILIZÁVEIS (WobbleMovement, FlameEmitter, WeaponComponent)
+      [11] INIMIGOS COMPOSTOS (EnemyComposed, createEnemy factory)
+      [12] INIMIGOS LEGADOS (Enemy, MiniBoss, DiveEnemy, Tank)
+      [13] INIMIGOS DEPRECADOS (Comentados: Bomber, Sniper, Shielded, Drone)
+      [14] FORMAÇÕES (spawnArrowFormation, spawnDroneFormation)
+      [15] SISTEMA DE WAVES
+      [16] SISTEMA DE COMBO
+      [17] COUNTDOWN SYSTEM
+      [18] SISTEMA DE SAVE/LOAD
+      [19] SISTEMA DE LOJA (Shop)
+      [20] DEV TOOLS (Debug Panel)
+      [21] GAME LOOP (update, draw, input)
+      [22] EVENT LISTENERS E INICIALIZAÇÃO
+      
+      ══════════════════════════════════════════════════════════════════
+      */
+
+      // ============================================
+      // [01] INICIALIZAÇÃO E CANVAS
+      // ============================================
       const canvas = document.getElementById("game");
       canvas.addEventListener("touchstart", handleTouch);
       canvas.addEventListener("touchmove", handleTouch);
@@ -418,10 +599,15 @@
       resizeCanvas();
       window.addEventListener("resize", resizeCanvas);
 
+      // ============================================
+      // [02] ASSETS E RECURSOS
+      // ============================================
       const ASSETS = {
         helicopter: "./images/player.png",
         inimigo1: "./images/inimigos/inimigo1.png",
-        grass: "https://placehold.co/20x20/88cc88/000?text=G",
+        inimigo2: "./images/inimigos/inimigo2.png",
+        tank: "./images/inimigos/tank.png",
+        grass: "https://placehold.co/20x20/418753/000?text=-",
         health: "https://placehold.co/20x20/ff66cc/000?text=H",
         parallax1: "./images/parallax-2/6.png",
         parallax2: "./images/parallax-2/5.png",
@@ -436,6 +622,10 @@
         HELICOPTER: "helicopter",
         PLANE: "plane",
       };
+
+      // ============================================
+      // [03] UTILITÁRIOS (Controles e Input)
+      // ============================================
       let keys = {};
       let controlMode = CONTROLSMODES.PLANE;
       document.addEventListener("keydown", (e) => {
@@ -445,6 +635,11 @@
             controlMode === CONTROLSMODES.HELICOPTER
               ? CONTROLSMODES.PLANE
               : CONTROLSMODES.HELICOPTER;
+          
+          // Atualiza a velocidade do parallax quando muda o modo de controle
+          if (window.game && window.game.parallaxLayers) {
+            window.game.parallaxLayers.forEach(layer => layer.updateSpeed(controlMode));
+          }
         }
         // Ativa/desativa modo debug com tecla K
         if (e.code === "KeyK") {
@@ -473,6 +668,7 @@
       class ParallaxLayer {
         constructor(image, speed, y = 0) {
           this.image = image;
+          this.baseSpeed = speed; // Velocidade base
           this.speed = speed;
           this.y = y;
           this.x1 = 0;
@@ -495,6 +691,14 @@
           
           // Posiciona a segunda imagem logo após a primeira
           this.x2 = this.scaledWidth;
+        }
+
+        // Atualiza velocidade baseado no modo de controle
+        updateSpeed(controlMode) {
+          // No modo helicóptero, parallax é mais lento (player "mais lento")
+          // No modo avião, parallax é mais rápido (player "mais rápido")
+          const multiplier = controlMode === CONTROLSMODES.HELICOPTER ? 0.5 : 1.0;
+          this.speed = this.baseSpeed * multiplier;
         }
 
         update() {
@@ -541,7 +745,9 @@
         }
       }
 
-      // Sistema de Combo
+      // ============================================
+      // [16] SISTEMA DE COMBO
+      // ============================================
       class ComboSystem {
         constructor() {
           this.combo = 0;
@@ -674,7 +880,9 @@
         }
       }
 
-      // Sistema de Countdown
+      // ============================================
+      // [17] COUNTDOWN SYSTEM
+      // ============================================
       class CountdownSystem {
         constructor() {
           this.active = false;
@@ -765,6 +973,8 @@
       }
 
       // Sistema de Moedas
+      const MAX_COINS_ON_SCREEN = 50; // Limite máximo de moedas na tela
+      
       class CoinDrop {
         constructor(x, y, value = 1) {
           this.x = x;
@@ -776,7 +986,8 @@
           this.vy = -2 - Math.random() * 2; // Pula para cima
           this.gravity = 0.2;
           this.bounce = 0.5;
-          this.lifetime = 600; // 10 segundos
+          this.lifetime = 300; // 5 segundos (reduzido de 10)
+          this.maxLifetime = 300;
           this.collected = false;
           
           // Animação de brilho
@@ -831,7 +1042,18 @@
           // Efeito de pulso
           const scale = 1 + Math.sin(this.pulseTime) * 0.2;
           
+          // Calcula opacidade baseado no tempo de vida restante
+          let opacity = 1;
+          if (this.lifetime < 60) { // Últimos 1 segundo
+            // Pisca rapidamente
+            opacity = Math.floor(this.lifetime / 5) % 2 === 0 ? 1 : 0.3;
+          } else if (this.lifetime < 120) { // Últimos 2 segundos
+            // Fade gradual
+            opacity = 0.5 + (this.lifetime - 60) / 120 * 0.5;
+          }
+          
           ctx.save();
+          ctx.globalAlpha = opacity;
           ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
           ctx.scale(scale, scale);
           
@@ -911,6 +1133,10 @@
           }
         },
       };
+
+      // ============================================
+      // [08] ARMAS (Tipos e Configurações)
+      // ============================================
       const WeaponTypes = {
         BASIC: {
           speed: 8,
@@ -1121,36 +1347,84 @@
       }
 
       class ExplosionParticle {
-        constructor(x, y, color = "orange") {
+        constructor(x, y, color = "orange", size = 1) {
           this.x = x;
           this.y = y;
-          this.vx = (Math.random() - 0.5) * 4;
-          this.vy = (Math.random() - 0.5) * 4;
+          // Explosão radial
+          const angle = Math.random() * Math.PI * 2;
+          const speed = Math.random() * 4 + 2;
+          this.vx = Math.cos(angle) * speed;
+          this.vy = Math.sin(angle) * speed;
           this.alpha = 1;
-          this.radius = 2 + Math.random() * 2;
+          this.radius = (2 + Math.random() * 3) * size;
+          this.maxLife = 20 + Math.random() * 20;
+          this.life = this.maxLife;
+          this.gravity = 0.1;
+          this.friction = 0.98;
+          // Se não passou cor, escolhe aleatoriamente
+          if (color === "orange") {
+            const colors = ['#FF4500', '#FF6347', '#FF8C00', '#FFD700', '#FFA500', '#FF0000', '#FFFFFF', '#FFFF00'];
+            this.color = colors[Math.floor(Math.random() * colors.length)];
+          } else {
           this.color = color;
-          this.life = 30 + Math.random() * 20;
+          }
         }
 
         update() {
+          this.vx *= this.friction;
+          this.vy *= this.friction;
+          this.vy += this.gravity;
           this.x += this.vx;
           this.y += this.vy;
           this.life--;
-          this.alpha = Math.max(0, this.life / 40);
+          this.alpha = Math.max(0, this.life / this.maxLife);
+          this.radius *= 0.96;
         }
 
-        draw() {
-          ctx.globalAlpha = this.alpha;
-          ctx.fillStyle = this.color;
-          ctx.beginPath();
-          ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.globalAlpha = 1;
+        draw(context = ctx) {
+          context.save();
+          context.globalAlpha = this.alpha;
+          context.shadowBlur = 10;
+          context.shadowColor = this.color;
+          context.fillStyle = this.color;
+          context.beginPath();
+          context.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+          context.fill();
+          context.restore();
         }
 
         get dead() {
           return this.life <= 0;
         }
+      }
+
+      // Função para criar explosão completa
+      function createExplosion(x, y, size = 1, particleCount = 20) {
+        for (let i = 0; i < particleCount; i++) {
+          game.particles.push(new ExplosionParticle(x, y, "orange", size));
+        }
+        
+        // Flash branco no centro
+        game.particles.push({
+          x: x,
+          y: y,
+          radius: 5 * size,
+          life: 5,
+          maxLife: 5,
+          color: '#FFFFFF',
+          update() { this.life--; this.radius *= 1.5; },
+          draw() {
+            const alpha = this.life / this.maxLife;
+            ctx.save();
+            ctx.globalAlpha = alpha * 0.7;
+            ctx.fillStyle = this.color;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          },
+          get dead() { return this.life <= 0; }
+        });
       }
 
       class OrbitalDrone {
@@ -1373,6 +1647,9 @@
         }
       }
 
+      // ============================================
+      // [07] POWER-UPS E MOEDAS
+      // ============================================
       class PowerUp {
         constructor(x, y) {
           this.x = x;
@@ -1435,6 +1712,9 @@
         }
       }
 
+      // ============================================
+      // [09] JOGADOR (Player Class)
+      // ============================================
       class Player {
         constructor() {
           this.x = 100;
@@ -1466,7 +1746,23 @@
           this.maxTilt = 0.15; // Inclinação máxima em radianos (~8 graus)
           this.tiltSpeed = 0.1; // Velocidade de transição da inclinação
           this.prevX = this.x; // Posição anterior para calcular movimento
+          
+          // Partículas de fumaça quando vida baixa
+          this.smokeParticles = [];
+          this.smokeTimer = 0;
           this.prevY = this.y;
+          
+          // Animação de morte
+          this.isDying = false;
+          this.deathTimer = 0;
+          this.deathVelocity = 0;
+          this.deathRotation = 0;
+          this.deathRotationSpeed = 0;
+          this.exploded = false;
+          
+          // Knockback ao tomar dano
+          this.knockbackX = 0;
+          this.knockbackY = 0;
 
           // Propriedades para animação da hélice traseira
           this.propellerAngle = 0;
@@ -1484,6 +1780,9 @@
         }
 
         draw() {
+          // Desenha partículas de fumaça ANTES do helicóptero (atrás)
+          this.smokeParticles.forEach(p => p.draw(ctx));
+          
           // Salva o estado do canvas antes de aplicar rotação
           ctx.save();
           
@@ -1562,16 +1861,39 @@
           const barHeight = 8;
           const barX = this.x;
           const barY = this.y - 12;
-          ctx.fillStyle = "gray";
+          const healthPercent = this.health / this.maxHealth;
+          
+          // Fundo da barra
+          ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
           ctx.fillRect(barX, barY, barWidth, barHeight);
-          ctx.fillStyle = "limegreen";
+          
+          // Cor da barra baseada na porcentagem de vida
+          let barColor;
+          if (healthPercent <= 0.15) {
+            // 15% ou menos: vermelho piscando
+            barColor = Math.floor(Date.now() / 200) % 2 === 0 ? "#ff0000" : "#cc0000";
+          } else if (healthPercent <= 0.3) {
+            // 30% ou menos: laranja/vermelho
+            barColor = "#ff4400";
+          } else if (healthPercent <= 0.5) {
+            // 50% ou menos: amarelo
+            barColor = "#ffcc00";
+          } else {
+            // Acima de 50%: verde
+            barColor = "#00ff00";
+          }
+          
+          ctx.fillStyle = barColor;
           ctx.fillRect(
             barX,
             barY,
-            barWidth * (this.health / this.maxHealth),
+            barWidth * healthPercent,
             barHeight
           );
+          
+          // Borda da barra
           ctx.strokeStyle = "black";
+          ctx.lineWidth = 2;
           ctx.strokeRect(barX, barY, barWidth, barHeight);
 
           if (this.orbitalDrones) {
@@ -1663,7 +1985,141 @@
           ctx.restore();
         }
 
+        die() {
+          // Inicia a animação de morte
+          this.isDying = true;
+          this.deathTimer = 0;
+          this.deathVelocity = -3; // Impulso inicial para cima
+          this.deathRotationSpeed = 0.1; // Rotação ao cair
+          this.exploded = false;
+        }
+
+        updateDeath() {
+          if (!this.isDying) return false;
+          
+          this.deathTimer++;
+          
+          // Física da queda
+          this.deathVelocity += 0.4; // Gravidade
+          this.y += this.deathVelocity;
+          this.x -= 2; // Move ligeiramente para trás
+          
+          // Rotação descontrolada
+          this.deathRotation += this.deathRotationSpeed;
+          this.deathRotationSpeed += 0.005; // Acelera a rotação
+          
+          // Fumaça intensa durante a queda
+          if (this.deathTimer % 2 === 0) {
+            const smokeX = this.x + this.width / 2 + (Math.random() - 0.5) * 30;
+            const smokeY = this.y + this.height / 2 + (Math.random() - 0.5) * 30;
+            this.smokeParticles.push(new SmokeParticle(smokeX, smokeY));
+          }
+          
+          // Verifica se bateu no chão
+          const groundY = canvas.height - canvas.height * 0.1;
+          if (this.y + this.height >= groundY && !this.exploded) {
+            this.exploded = true;
+            // Cria explosão no impacto
+            createExplosion(this.x + this.width , groundY, 20, 15);
+            this.deathTimer = 0; // Reseta para contar tempo da explosão
+          }
+          
+          // Após explosão, aguarda um pouco antes do game over
+          if (this.exploded && this.deathTimer > 60) {
+            return true; // Sinaliza que a animação terminou
+          }
+          
+          return false; // Ainda está morrendo
+        }
+
+        drawDeath() {
+          if (!this.isDying) return;
+          
+          // Desenha fumaça
+          this.smokeParticles.forEach(p => p.draw(ctx));
+          
+          // Se ainda não explodiu, desenha o helicóptero caindo
+          if (!this.exploded) {
+            ctx.save();
+            
+            const centerX = this.x + this.width / 2;
+            const centerY = this.y + this.height / 2;
+            
+            ctx.translate(centerX, centerY);
+            ctx.rotate(this.deathRotation);
+            ctx.translate(-centerX, -centerY);
+            
+            // Desenha com transparência piscante
+            if (Math.floor(this.deathTimer / 3) % 2 === 0) {
+              ctx.globalAlpha = 0.8;
+            }
+            
+            ctx.drawImage(
+              IMAGES.helicopter,
+              this.x,
+              this.y,
+              this.width,
+              this.height
+            );
+            
+            ctx.globalAlpha = 1.0;
+            ctx.restore();
+          }
+        }
+
+        takeDamage(amount, fromX, fromY) {
+          // Aplica dano
+          this.health -= amount;
+          this.invincibilityTimer = 180;
+          
+          // Calcula direção do knockback (oposto ao impacto)
+          const dx = this.x + this.width / 2 - fromX;
+          const dy = this.y + this.height / 2 - fromY;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          
+          if (distance > 0) {
+            // Normaliza e aplica força
+            this.knockbackX = (dx / distance) * 15; // Força do knockback
+            this.knockbackY = (dy / distance) * 15;
+          }
+          
+          // Cria partículas de impacto
+          const impactX = this.x + this.width / 2;
+          const impactY = this.y + this.height / 2;
+          for (let i = 0; i < 8; i++) {
+            game.particles.push(new ImpactParticle(impactX, impactY));
+          }
+          
+          // Efeito de screen shake
+          game.shakeX = 3;
+          game.shakeY = 3;
+          
+          // Texto de dano
+          game.damageTexts.push(
+            new DamageText(this.x, this.y, "-" + amount.toFixed(1), "red")
+          );
+          
+          // Verifica morte
+          if (this.health <= 0) {
+            this.die();
+          }
+        }
+
         update() {
+          // Aplica knockback
+          if (this.knockbackX !== 0 || this.knockbackY !== 0) {
+            this.x += this.knockbackX;
+            this.y += this.knockbackY;
+            
+            // Reduz knockback gradualmente
+            this.knockbackX *= 0.8;
+            this.knockbackY *= 0.8;
+            
+            // Para quando muito pequeno
+            if (Math.abs(this.knockbackX) < 0.1) this.knockbackX = 0;
+            if (Math.abs(this.knockbackY) < 0.1) this.knockbackY = 0;
+          }
+          
           // Movimento suave para mobile
           if (this.targetX !== null && this.targetY !== null) {
             const dx = this.targetX - this.x;
@@ -1715,7 +2171,8 @@
           this.prevY = this.y;
 
           if (controlMode === CONTROLSMODES.HELICOPTER) {
-            if (keys["Space"]) {
+            // Controle vertical - Space ou Up/W para subir
+            if (keys["Space"] || keys["ArrowUp"] || keys["KeyW"]) {
               this.velocity += this.lift;
             }
 
@@ -1734,6 +2191,23 @@
             if (this.y < 0) {
               this.y = 0;
               this.velocity = 0;
+            }
+
+            // Controle horizontal (apenas quando airborne)
+            if (this.airborne) {
+              const speed = this.speed * 0.3; // 30% da velocidade do modo avião
+              if (keys["ArrowLeft"] || keys["KeyA"]) {
+                this.x -= speed;
+              }
+              if (keys["ArrowRight"] || keys["KeyD"]) {
+                this.x += speed;
+              }
+
+              // Limites da tela
+              if (this.x < 0) this.x = 0;
+              if (this.x + this.width > canvas.width) {
+                this.x = canvas.width - this.width;
+              }
             }
           } else if (controlMode === CONTROLSMODES.PLANE) {
             const speed = this.speed * (this.speedBoost || 1);
@@ -1811,6 +2285,26 @@
 
             this.orbitalDrones.forEach((drone, i) => drone.update(i, count));
           }
+          
+          // Gera partículas de fumaça quando vida está baixa (30% ou menos)
+          const healthPercent = this.health / this.maxHealth;
+          if (healthPercent <= 0.3 && healthPercent > 0) {
+            this.smokeTimer++;
+            // Frequência baseada na vida: quanto menor, mais fumaça
+            const smokeFrequency = healthPercent < 0.15 ? 3 : 6;
+            
+            if (this.smokeTimer >= smokeFrequency) {
+              // Posição atrás do helicóptero
+              const smokeX = this.x + 22;
+              const smokeY = this.y + this.height / 2 + (Math.random() - 0.5) * 20;
+              this.smokeParticles.push(new SmokeParticle(smokeX, smokeY));
+              this.smokeTimer = 0;
+            }
+          }
+          
+          // Atualiza e limpa partículas de fumaça
+          this.smokeParticles.forEach(p => p.update());
+          this.smokeParticles = this.smokeParticles.filter(p => !p.dead);
         }
 
         shoot() {
@@ -1896,6 +2390,9 @@
         }
       }
 
+      // ============================================
+      // [06] PROJÉTEIS (Player e Inimigos)
+      // ============================================
       class Projectile {
         constructor(x, y, weapon, verticalOffset = 0) {
           this.x = x;
@@ -2033,6 +2530,229 @@
           this.y += this.vy;
         }
       }
+      // ============================================
+      // [10] COMPONENTES REUTILIZÁVEIS (Composition Pattern)
+      // ============================================
+      
+      // Componente de Movimento com Wobble
+      class WobbleMovement {
+        constructor(config = {}) {
+          this.speed = config.speed || 2;
+          this.wobbleSpeed = config.wobbleSpeed || 0.06;
+          this.wobbleAmplitude = config.wobbleAmplitude || 15;
+          this.wobbleOffset = Math.random() * Math.PI * 2;
+          this.wobbleCounter = 0;
+        }
+        
+        update(entity) {
+          entity.x -= this.speed;
+          this.wobbleCounter += this.wobbleSpeed;
+          entity.y = entity.baseY + Math.sin(this.wobbleCounter + this.wobbleOffset) * this.wobbleAmplitude;
+        }
+      }
+      
+      // Componente de Sistema de Partículas (Flares/Flames)
+      class FlameEmitter {
+        constructor(config = {}) {
+          this.particles = [];
+          this.spawnCounter = 0;
+          this.spawnRate = config.spawnRate || 3;
+          this.particleCount = config.particleCount || [2, 3];
+          this.offsetX = config.offsetX || 0;
+          this.offsetY = config.offsetY || 0;
+        }
+        
+        update(entity) {
+          this.spawnCounter++;
+          if (this.spawnCounter >= this.spawnRate) {
+            this.spawnCounter = 0;
+            const turbineX = entity.x + entity.width + this.offsetX;
+            const turbineY = entity.y + entity.height / 2 + this.offsetY;
+            
+            const min = this.particleCount[0];
+            const max = this.particleCount[1];
+            const count = Math.floor(Math.random() * (max - min + 1)) + min;
+            
+            for (let i = 0; i < count; i++) {
+              this.particles.push(new FlameParticle(turbineX, turbineY + (Math.random() - 0.5) * 10));
+            }
+          }
+          
+          this.particles.forEach(p => p.update());
+          this.particles = this.particles.filter(p => !p.dead);
+        }
+        
+        draw() {
+          this.particles.forEach(p => p.draw());
+        }
+      }
+      
+      // Componente de Arma/Disparo
+      class WeaponComponent {
+        constructor(config = {}) {
+          this.damage = config.damage || 1;
+          this.cooldown = Math.random() * 120 + 60; // Inicializa com valor aleatório
+          this.cooldownMin = config.cooldownMin || 60;
+          this.cooldownMax = config.cooldownMax || 180;
+        }
+        
+        update(entity) {
+          this.cooldown--;
+          if (this.cooldown <= 0) {
+            this.fire(entity);
+            this.cooldown = Math.random() * (this.cooldownMax - this.cooldownMin) + this.cooldownMin;
+          }
+        }
+        
+        fire(entity) {
+          game.enemyProjectiles.push(
+            new EnemyProjectile(entity.x, entity.y + entity.height / 2, this.damage)
+          );
+        }
+      }
+      
+      // Componente de Arma Tripla (Bomber)
+      class TripleWeaponComponent extends WeaponComponent {
+        fire(entity) {
+          // Atira 3 projéteis em linha vertical
+          for (let i = -1; i <= 1; i++) {
+            game.enemyProjectiles.push(
+              new EnemyProjectile(entity.x, entity.y + entity.height / 2 + i * 10, this.damage)
+            );
+          }
+        }
+      }
+      
+      // Componente de Arma Sniper (Angular/Mira)
+      class SniperWeaponComponent extends WeaponComponent {
+        fire(entity) {
+          const target = game.player;
+          game.enemyProjectiles.push(
+            new EnemyProjectileAngular(
+              entity.x,
+              entity.y + entity.height / 2,
+              target.x + target.width / 2,
+              target.y + target.height / 2,
+              this.damage
+            )
+          );
+        }
+      }
+      
+      // Componente de Arma Dive (Disparo em mergulho)
+      class DiveWeaponComponent extends WeaponComponent {
+        constructor(config = {}) {
+          super(config);
+          this.hasFired = false;
+        }
+        
+        fire(entity) {
+          // Só atira uma vez durante o mergulho
+          if (!this.hasFired && entity.phase === 'diving') {
+            const target = game.player;
+            game.enemyProjectiles.push(
+              new EnemyProjectileAngular(
+                entity.x,
+                entity.y + entity.height / 2,
+                target.x + target.width / 2,
+                target.y + target.height / 2,
+                this.damage
+              )
+            );
+            this.hasFired = true;
+          }
+        }
+      }
+      
+      // ============================================
+      // [04] PARTÍCULAS (Efeitos Visuais)
+      // ============================================
+      
+      // Classe para partículas de fumaça (quando vida baixa)
+      class SmokeParticle {
+        constructor(x, y) {
+          this.x = x;
+          this.y = y;
+          this.vx = (Math.random() - 0.5) * 0.5; // Movimento horizontal leve
+          this.vy = -Math.random() * 2 - 1; // Sobe
+          this.size = Math.random() * 2 + 4; // Tamanho entre 4-12
+          this.life = 30; // Vida da partícula em frames
+          this.maxLife = this.life;
+          this.opacity = 0.6;
+        }
+
+        update() {
+          this.x += this.vx;
+          this.y += this.vy;
+          this.life--;
+          this.size += 0.3; // Expande com o tempo
+          this.opacity = (this.life / this.maxLife) * 0.8; // Fade out
+          this.vy *= 0.98; // Desacelera ao subir
+        }
+
+        draw(context) {
+          if (!context) return; // Proteção contra contexto undefined
+          const alpha = this.opacity;
+          // Fumaça cinza escura
+          context.fillStyle = `rgba(40, 40, 40, ${alpha})`;
+          context.beginPath();
+          context.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+          context.fill();
+          
+          // Borda mais clara para dar profundidade
+          context.fillStyle = `rgba(80, 80, 80, ${alpha * 0.5})`;
+          context.beginPath();
+          context.arc(this.x - this.size * 0.2, this.y - this.size * 0.2, this.size * 0.6, 0, Math.PI * 2);
+          context.fill();
+        }
+
+        get dead() {
+          return this.life <= 0;
+        }
+      }
+      
+      // Classe para partículas de impacto (quando toma dano)
+      class ImpactParticle {
+        constructor(x, y) {
+          this.x = x;
+          this.y = y;
+          const angle = Math.random() * Math.PI * 2;
+          const speed = Math.random() * 3 + 2;
+          this.vx = Math.cos(angle) * speed;
+          this.vy = Math.sin(angle) * speed;
+          this.size = Math.random() * 3 + 2;
+          this.life = 20;
+          this.maxLife = this.life;
+          // Cores de impacto (vermelho, laranja, amarelo)
+          const colors = ['#ff0000', '#ff4400', '#ff8800', '#ffaa00', '#ffff00'];
+          this.color = colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        update() {
+          this.x += this.vx;
+          this.y += this.vy;
+          this.vx *= 0.95; // Desacelera
+          this.vy *= 0.95;
+          this.life--;
+          this.size *= 0.95; // Diminui
+        }
+
+        draw(context) {
+          if (!context) return; // Proteção contra contexto undefined
+          const alpha = this.life / this.maxLife;
+          context.fillStyle = this.color;
+          context.globalAlpha = alpha;
+          context.beginPath();
+          context.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+          context.fill();
+          context.globalAlpha = 1;
+        }
+
+        get dead() {
+          return this.life <= 0;
+        }
+      }
+      
       // Classe para partículas de chama da turbina
       class FlameParticle {
         constructor(x, y) {
@@ -2071,6 +2791,25 @@
         }
       }
 
+      // ============================================
+      // [11] INIMIGOS COMPOSTOS (Nova Arquitetura)
+      // ============================================
+
+      // EnemyComposed já foi definido acima nos componentes
+
+      // ============================================
+      // [12] INIMIGOS LEGADOS (Herança)
+      // ============================================
+      
+      // ============================================
+      // CLASSE ENEMY - Base Legada (Uso Limitado)
+      // 
+      // USO ATUAL: Apenas para MiniBoss (herança)
+      // NOVO PADRÃO: createEnemy() com EnemyComposed (composição)
+      //
+      // Esta classe está mantida APENAS porque MiniBoss herda dela.
+      // Todos os outros inimigos agora usam o padrão de composição.
+      // ============================================
       class Enemy {
         constructor(x, y) {
           this.x = x;
@@ -2099,8 +2838,8 @@
             ctx.drawImage(IMAGES.inimigo1, this.x, this.y, this.width, this.height);
           } else {
             // Fallback caso a imagem não carregue
-            ctx.fillStyle = "#594700";
-            ctx.fillRect(this.x, this.y, this.width, this.height);
+          ctx.fillStyle = "#594700";
+          ctx.fillRect(this.x, this.y, this.width, this.height);
           }
         }
 
@@ -2124,7 +2863,7 @@
           if (this.flameSpawnCounter >= 3) { // Cria partículas a cada 3 frames
             this.flameSpawnCounter = 0;
             // Posição da turbina (traseira do inimigo, centro vertical)
-            const turbineX = this.x + this.width  // Traseira da nave
+            const turbineX = this.x + this.width;  // Traseira da nave
             const turbineY = this.y + this.height / 2; // Centro vertical
             
             // Cria 2-3 partículas por vez para um efeito mais denso
@@ -2139,7 +2878,177 @@
           this.flameParticles = this.flameParticles.filter(p => !p.dead);
         }
       }
+      
+      // ============================================
+      // FACTORY PARA CRIAR ENEMIES (Facilita migração)
+      // ============================================
+      function createEnemy(x, y, type = 'basic') {
+        const configs = {
+          basic: {
+            sprite: 'inimigo1',
+            width: 50,
+            height: 50,
+            health: 2,
+            movement: { speed: 2, wobbleSpeed: 0.06, wobbleAmplitude: 15 },
+            flames: { spawnRate: 3, particleCount: [2, 3] },
+            weapon: { damage: 1, cooldownMin: 60, cooldownMax: 180 }
+          },
+          drone: {
+            sprite: 'inimigo2',
+            width: 45,
+            height: 45,
+            health: 4,
+            movement: { speed: 2.5, wobbleSpeed: 0.08, wobbleAmplitude: 10 },
+            flames: { spawnRate: 4, particleCount: [1, 2] },
+            weapon: { damage: 1, cooldownMin: 60, cooldownMax: 180 }
+          },
+          bomber: {
+            sprite: 'inimigo3', // Pode criar sprite próprio depois
+            width: 40,
+            height: 40,
+            health: 3,
+            movement: { speed: 2, wobbleSpeed: 0.05, wobbleAmplitude: 12 },
+            flames: { spawnRate: 3, particleCount: [2, 3] },
+            weaponType: 'triple', // Usa arma tripla
+            weapon: { damage: 1, cooldownMin: 90, cooldownMax: 150 }
+          },
+          sniper: {
+            sprite: 'inimigo4', // Pode criar sprite próprio depois
+            width: 20,
+            height: 60,
+            health: 4,
+            movement: { speed: 1, wobbleSpeed: 0.03, wobbleAmplitude: 8 }, // Mais lento
+            flames: { spawnRate: 5, particleCount: [1, 2] },
+            weaponType: 'sniper', // Usa arma de mira
+            weapon: { damage: 2, cooldownMin: 180, cooldownMax: 240 }
+          },
+          shielded: {
+            sprite: 'inimigo4', // Pode criar sprite próprio depois
+            width: 50,
+            height: 50,
+            health: 10,
+            movement: { speed: 1.5, wobbleSpeed: 0.04, wobbleAmplitude: 10 },
+            flames: { spawnRate: 4, particleCount: [2, 3] },
+            weapon: { damage: 2, cooldownMin: 70, cooldownMax: 130 }
+          }
+        };
+        
+        const config = configs[type] || configs.basic;
+        const enemy = new EnemyComposed(x, y, config);
+        
+        // Adiciona arma customizada se necessário
+        if (config.weaponType === 'triple') {
+          // Remove arma padrão e adiciona tripla
+          enemy.components = enemy.components.filter(c => !(c instanceof WeaponComponent));
+          enemy.components.push(new TripleWeaponComponent(config.weapon));
+        } else if (config.weaponType === 'sniper') {
+          enemy.components = enemy.components.filter(c => !(c instanceof WeaponComponent));
+          enemy.components.push(new SniperWeaponComponent(config.weapon));
+        }
+        
+        return enemy;
+      }
+      
+      // Nova classe Enemy com composição
+      class EnemyComposed {
+        constructor(x, y, config = {}) {
+          // Propriedades básicas
+          this.x = x;
+          this.y = y;
+          this.baseY = y;
+          this.width = config.width || 50;
+          this.height = config.height || 50;
+          this.sprite = config.sprite || 'inimigo1';
+          this.damage = config.damage || 1;
+          
+          // Sistema de saúde
+          this.maxHealth = config.health || 1;
+          this.health = this.maxHealth;
+          
+          // Componentes (Composition over Inheritance)
+          this.components = [];
+          
+          // Adiciona movimento com wobble
+          if (config.movement !== false) {
+            this.components.push(new WobbleMovement(config.movement || {
+              speed: 2,
+              wobbleSpeed: 0.06,
+              wobbleAmplitude: 15
+            }));
+          }
+          
+          // Adiciona sistema de partículas de chama
+          if (config.flames !== false) {
+            this.components.push(new FlameEmitter(config.flames || {
+              spawnRate: 3,
+              particleCount: [2, 3],
+              offsetX: 0,
+              offsetY: 0
+            }));
+          }
+          
+          // Adiciona sistema de disparo
+          if (config.weapon !== false) {
+            this.components.push(new WeaponComponent(config.weapon || {
+              damage: this.damage,
+              cooldownMin: 60,
+              cooldownMax: 180
+            }));
+          }
+        }
+        
+        takeDamage(amount = 1) {
+          this.health -= amount;
+          return this.health <= 0;
+        }
+        
+        addComponent(component) {
+          this.components.push(component);
+          return this;
+        }
+        
+        update() {
+          // Delega para os componentes
+          this.components.forEach(component => {
+            if (component.update) component.update(this);
+          });
+        }
+        
+        draw() {
+          // Desenha efeitos primeiro (flames, etc)
+          this.components.forEach(component => {
+            if (component.draw) component.draw(this);
+          });
+          
+          // Desenha sprite do inimigo
+          if (IMAGES[this.sprite] && IMAGES[this.sprite].complete) {
+            ctx.drawImage(IMAGES[this.sprite], this.x, this.y, this.width, this.height);
+          } else {
+            // Fallback caso a imagem não carregue
+            ctx.fillStyle = "#594700";
+            ctx.fillRect(this.x, this.y, this.width, this.height);
+          }
+          
+          // Desenha barra de vida
+          ctx.fillStyle = "gray";
+          ctx.fillRect(this.x, this.y - 6, this.width, 5);
+          ctx.fillStyle = "lime";
+          ctx.fillRect(
+            this.x,
+            this.y - 6,
+            this.width * (this.health / this.maxHealth),
+            5
+          );
+          ctx.strokeStyle = "black";
+          ctx.strokeRect(this.x, this.y - 6, this.width, 5);
+        }
+      }
 
+      // ============================================
+      // CLASSE MINIBOSS - Mantida como classe dedicada
+      // Lógica complexa de movimento, evasão e ataque justifica classe própria
+      // Herda de Enemy pois ainda usa funcionalidades base
+      // ============================================
       class MiniBoss extends Enemy {
         constructor(x, y) {
           super(x, y);
@@ -2246,7 +3155,7 @@
             // );
             
             // Boss dropa muitas moedas
-            for (let i = 0; i < 10; i++) {
+            for (let i = 0; i < 10 && game.coinsDropped.length < MAX_COINS_ON_SCREEN; i++) {
               const offsetX = (Math.random() - 0.5) * 80;
               const offsetY = (Math.random() - 0.5) * 80;
               game.coinsDropped.push(new CoinDrop(this.x + offsetX, this.y + offsetY, 5));
@@ -2284,41 +3193,263 @@
         }
       }
 
+      // Classe de partícula de fumaça do tank
+      class TankSmokeParticle {
+        constructor(x, y) {
+          this.x = x;
+          this.y = y;
+          this.vx = Math.random() * 0.5 - 0.5; // Movimento horizontal leve
+          this.vy = -Math.random() * 0.5 - 0.3; // Sobe levemente
+          this.size = Math.random() * 3 + 2; // Tamanho entre 2-5
+          this.life = 40; // Vida da partícula em frames
+          this.maxLife = this.life;
+          this.opacity = 0.5;
+        }
+
+        update() {
+          this.x += this.vx;
+          this.y += this.vy;
+          this.life--;
+          this.size += 0.15; // Expande levemente
+          this.opacity = (this.life / this.maxLife) * 0.5; // Fade out
+          this.vy *= 0.98; // Desacelera ao subir
+        }
+
+        draw() {
+          const alpha = this.opacity;
+          // Fumaça cinza do motor
+          ctx.fillStyle = `rgba(60, 60, 60, ${alpha})`;
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // Borda mais clara
+          ctx.fillStyle = `rgba(100, 100, 100, ${alpha * 0.3})`;
+          ctx.beginPath();
+          ctx.arc(this.x - this.size * 0.3, this.y - this.size * 0.3, this.size * 0.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        get dead() {
+          return this.life <= 0;
+        }
+      }
+
+      // Classe de partícula de disparo (muzzle flash)
+      class MuzzleFlashParticle {
+        constructor(x, y, angle) {
+          this.x = x;
+          this.y = y;
+          // Direção baseada no ângulo do canhão
+          const spread = (Math.random() - 0.5) * 0.3; // Pequeno spread
+          this.vx = Math.cos(angle + spread) * (Math.random() * 2 + 1);
+          this.vy = Math.sin(angle + spread) * (Math.random() * 2 + 1);
+          this.size = Math.random() * 2 + 2; // Tamanho entre 2-4
+          this.life = 15; // Vida curta (explosão rápida)
+          this.maxLife = this.life;
+          this.opacity = 1;
+          // Cores de flash: amarelo/laranja/branco
+          const colors = ['#ffff00', '#ffaa00', '#ff8800', '#ffffff', '#ffcc00'];
+          this.color = colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        update() {
+          this.x += this.vx;
+          this.y += this.vy;
+          this.life--;
+          this.size += 0.2; // Expande rapidamente
+          this.opacity = this.life / this.maxLife; // Fade rápido
+          this.vx *= 0.92; // Desacelera
+          this.vy *= 0.92;
+        }
+
+        draw() {
+          ctx.save();
+          ctx.globalAlpha = this.opacity;
+          
+          // Flash brilhante
+          ctx.fillStyle = this.color;
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // Brilho externo
+          ctx.shadowBlur = 8;
+          ctx.shadowColor = this.color;
+          ctx.fillStyle = this.color;
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.size * 0.5, 0, Math.PI * 2);
+          ctx.fill();
+          
+          ctx.restore();
+        }
+
+        get dead() {
+          return this.life <= 0;
+        }
+      }
+
       class Tank {
         constructor(x) {
           this.x = x;
           this.y = canvas.height - canvas.height * 0.1 - 40;
-          this.width = 60;
-          this.height = 40;
+          this.width = 80;
+          this.height = 60;
           this.speed = 1.2;
           this.cooldown = Math.random() * 180 + 60;
+          this.cannonAngle = 0; // Ângulo do canhão
+          this.cannonLength = 45; // Comprimento do canhão
+          
+          // Propriedades das rodas
+          this.wheelRotation = 0; // Ângulo de rotação das rodas
+          this.wheelRadius = 9; // Raio das rodas
+          this.wheelPositions = [ // Posições relativas das 3 rodas
+            { x: 15, y: this.height - 11},  // Roda esquerda
+            { x: 35, y: this.height - 11 },  // Roda central
+            { x: 55, y: this.height - 11}   // Roda direita
+          ];
+          
+          // Sistema de partículas de fumaça
+          this.smokeParticles = [];
+          this.smokeSpawnCounter = 0;
+        }
+
+        drawWheel(x, y) {
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(this.wheelRotation);
+          
+          // Roda externa (pneu)
+          ctx.fillStyle = "#2a2a2a";
+          ctx.beginPath();
+          ctx.arc(0, 0, this.wheelRadius, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // Aro interno
+          ctx.fillStyle = "#555";
+          ctx.beginPath();
+          ctx.arc(0, 0, this.wheelRadius - 2, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // Raios da roda (4 raios)
+          ctx.strokeStyle = "#777";
+          ctx.lineWidth = 1.5;
+          for (let i = 0; i < 4; i++) {
+            const angle = (i * Math.PI) / 2;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(Math.cos(angle) * (this.wheelRadius - 2), Math.sin(angle) * (this.wheelRadius - 2));
+            ctx.stroke();
+          }
+          
+          ctx.restore();
         }
 
         draw() {
+          // Desenha partículas de fumaça PRIMEIRO (atrás de tudo)
+          this.smokeParticles.forEach(p => p.draw());
+          
+          // Desenha o corpo do tank (sprite)
+          if (IMAGES.tank && IMAGES.tank.complete) {
+            ctx.drawImage(IMAGES.tank, this.x, this.y, this.width, this.height);
+          } else {
+            // Fallback caso o sprite não carregue
           ctx.fillStyle = "#333";
           ctx.fillRect(this.x, this.y, this.width, this.height);
-          ctx.fillStyle = "#666";
-          ctx.fillRect(this.x + 10, this.y - 10, 40, 10);
+          }
+          
+          // Desenha as rodas POR CIMA do sprite
+          this.wheelPositions.forEach(wheel => {
+            this.drawWheel(this.x + wheel.x, this.y + wheel.y);
+          });
+          
+          // Desenha o canhão rotacionado apontando para o player (por último)
+          const cannonBaseX = this.x + this.width / 2 ;
+          const cannonBaseY = this.y + 15; // Ajusta para ficar no topo do tank
+          
+          ctx.save();
+          ctx.translate(cannonBaseX, cannonBaseY);
+          ctx.rotate(this.cannonAngle);
+          
+          // Desenha o canhão
+          ctx.fillStyle = "#3e541f";
+
+          ctx.fillRect(0, -3, this.cannonLength, 6); // Canhão horizontal que será rotacionado
+          
+          // Ponta do canhão mais escura
+          ctx.fillStyle = "#222";
+          ctx.fillRect(this.cannonLength - 5, -4, 5, 8);
+          
+          ctx.restore();
         }
 
         update() {
           this.x -= this.speed;
+          
+          // Anima as rodas baseado no movimento
+          // Rotação proporcional à velocidade (quanto mais rápido, mais gira)
+          this.wheelRotation += this.speed * 0.15;
+          
+          // Sistema de partículas de fumaça do motor
+          this.smokeSpawnCounter++;
+          if (this.smokeSpawnCounter >= 8) { // Spawna fumaça a cada 8 frames
+            // Posição do escapamento (parte traseira do tank)
+            const exhaustX = this.x +this.width - 5; // Traseira do tank
+            const exhaustY = this.y + this.height / 2;
+            this.smokeParticles.push(new TankSmokeParticle(exhaustX, exhaustY));
+            this.smokeSpawnCounter = 0;
+          }
+          
+          // Atualiza e remove partículas mortas
+          this.smokeParticles.forEach(p => p.update());
+          this.smokeParticles = this.smokeParticles.filter(p => !p.dead);
+          
+          // Calcula o ângulo para apontar para o player
+          const target = game.player;
+          const dx = target.x + target.width / 2 - (this.x + this.width / 2);
+          const dy = target.y + target.height / 2 - (this.y + this.height / 2 - 5);
+          this.cannonAngle = Math.atan2(dy, dx);
+          
           this.cooldown--;
           if (this.cooldown <= 0) {
-            const target = game.player;
+            // Calcula a posição da ponta do canhão
+            const cannonBaseX = this.x + this.width / 2;
+            const cannonBaseY = this.y + this.height / 2 - 5;
+            const cannonTipX = cannonBaseX + Math.cos(this.cannonAngle) * this.cannonLength;
+            const cannonTipY = cannonBaseY + Math.sin(this.cannonAngle) * this.cannonLength;
+            
+            // Dispara da ponta do canhão
             game.enemyProjectiles.push(
               new EnemyProjectileAngular(
-                this.x,
-                this.y + this.height / 2,
+                cannonTipX,
+                cannonTipY,
                 target.x + target.width / 2,
                 target.y + target.height / 2
               )
             );
+            
+            // Cria partículas de flash do disparo (6-8 partículas)
+            const particleCount = Math.floor(Math.random() * 3) + 6;
+            for (let i = 0; i < particleCount; i++) {
+              this.smokeParticles.push(
+                new MuzzleFlashParticle(cannonTipX - 5, cannonTipY - 5, this.cannonAngle)
+              );
+            }
+            
             this.cooldown = Math.random() * 180 + 60;
           }
         }
       }
 
+      // ============================================
+      // [13] INIMIGOS DEPRECADOS (Comentados - Não usar)
+      // ============================================
+      
+      // ============================================
+      // CLASSE BOMBERENEMY ANTIGA (Deprecated - NÃO É MAIS USADA)
+      // MIGRADO: usar createEnemy(x, y, 'bomber')
+      // ============================================
+      /*
       class BomberEnemy extends Enemy {
         constructor(x, y) {
           super(x, y);
@@ -2345,7 +3476,13 @@
           ctx.fillRect(this.x, this.y, this.width, this.height);
         }
       }
+      */
 
+      // ============================================
+      // CLASSE SNIPERENEMY ANTIGA (Deprecated - NÃO É MAIS USADA)
+      // MIGRADO: usar createEnemy(x, y, 'sniper')
+      // ============================================
+      /*
       class SniperEnemy extends Enemy {
         constructor(x, y) {
           super(x, y);
@@ -2378,7 +3515,13 @@
           ctx.fillRect(this.x, this.y, this.width, this.height);
         }
       }
+      */
 
+      // ============================================
+      // CLASSE SHIELDEDENEMY ANTIGA (Deprecated - NÃO É MAIS USADA)
+      // MIGRADO: usar createEnemy(x, y, 'shielded')
+      // ============================================
+      /*
       class ShieldedEnemy extends Enemy {
         constructor(x, y) {
           super(x, y);
@@ -2401,7 +3544,11 @@
           }
         }
       }
+      */
 
+      // ============================================
+      // CLASSE DIVEENEMY - Mantida como está (lógica complexa de fases)
+      // ============================================
       class DiveEnemy {
         constructor(x) {
           const player = game.player;
@@ -2453,23 +3600,51 @@
         }
       }
 
+      // ============================================
+      // CLASSE DRONEENEMY ANTIGA (Deprecated - NÃO É MAIS USADA)
+      // MIGRADO: usar createEnemy(x, y, 'drone')
+      // Mantida apenas como referência - PODE SER REMOVIDA
+      // ============================================
+      /*
       class DroneEnemy extends Enemy {
         constructor(x, y) {
           super(x, y);
-          this.width = 20;
-          this.height = 20;
+          this.width = 45;
+          this.height = 45;
           this.speed = 2.5;
           this.cooldown = 60 + Math.random() * 60;
           this.damage = 1;
+          this.flameParticles = []; // Array de partículas de chama
+          this.flameSpawnCounter = 0; // Contador para spawn de partículas
+          // Balanço vertical (menor que o inimigo básico)
+          this.wobbleOffset = Math.random() * Math.PI * 2;
+          this.wobbleSpeed = 0.08; // Um pouco mais rápido
+          this.wobbleAmplitude = 10; // Menor amplitude
+          this.baseY = y;
+          this.wobbleCounter = 0;
         }
 
         draw() {
+          // Desenha partículas de chama primeiro (atrás do inimigo)
+          this.flameParticles.forEach(p => p.draw());
+          
+          // Desenha o inimigo
+          if (IMAGES.inimigo2 && IMAGES.inimigo2.complete) {
+            ctx.drawImage(IMAGES.inimigo2, this.x, this.y, this.width, this.height);
+          } else {
+            // Fallback caso a imagem não carregue
           ctx.fillStyle = "#00ccff";
           ctx.fillRect(this.x, this.y, this.width, this.height);
+          }
         }
 
         update() {
           this.x -= this.speed;
+          
+          // Balanço vertical suave
+          this.wobbleCounter += this.wobbleSpeed;
+          this.y = this.baseY + Math.sin(this.wobbleCounter + this.wobbleOffset) * this.wobbleAmplitude;
+          
           this.cooldown--;
           if (this.cooldown <= 0) {
             game.enemyProjectiles.push(
@@ -2477,8 +3652,27 @@
             );
             this.cooldown = 90 + Math.random() * 90;
           }
+          
+          // Sistema de partículas de chama da turbina
+          this.flameSpawnCounter++;
+          if (this.flameSpawnCounter >= 4) { // Cria partículas um pouco mais espaçadas
+            this.flameSpawnCounter = 0;
+            const turbineX = this.x + this.width; // Traseira da nave
+            const turbineY = this.y + this.height / 2; // Centro vertical
+            
+            // Cria 1-2 partículas por vez (menos que o inimigo básico)
+            const particleCount = Math.floor(Math.random() * 2) + 1;
+            for (let i = 0; i < particleCount; i++) {
+              this.flameParticles.push(new FlameParticle(turbineX, turbineY + (Math.random() - 0.5) * 8));
+            }
+          }
+          
+          // Atualiza e remove partículas mortas
+          this.flameParticles.forEach(p => p.update());
+          this.flameParticles = this.flameParticles.filter(p => !p.dead);
         }
       }
+      */
 
       function dropOnEnemyDeath(enemy) {
         const dropChance = Math.random();
@@ -2504,12 +3698,15 @@
 
         for (let i = 0; i < size; i++) {
           const offsetY = i * 30;
-          drones.push(new DroneEnemy(baseX + i * 30, baseY + offsetY));
+          drones.push(createEnemy(baseX + i * 30, baseY + offsetY, 'drone'));
         }
 
         return drones; // ✅ retorna array de DroneEnemy
       }
 
+      // ============================================
+      // [14] FORMAÇÕES (Spawns Organizados)
+      // ============================================
       function spawnArrowFormationGeneric(
         enemyClass,
         size = 6,
@@ -2556,12 +3753,29 @@
               break;
           }
 
+          // Suporta tanto classes antigas quanto nova arquitetura
+          if (enemyClass === Enemy || enemyClass === 'Enemy' || enemyClass === 'basic') {
+            enemies.push(createEnemy(x, y, 'basic'));
+          } else if (enemyClass === 'DroneEnemy' || enemyClass === 'drone') {
+            enemies.push(createEnemy(x, y, 'drone'));
+          } else if (enemyClass === 'BomberEnemy' || enemyClass === 'bomber') {
+            enemies.push(createEnemy(x, y, 'bomber'));
+          } else if (enemyClass === 'SniperEnemy' || enemyClass === 'sniper') {
+            enemies.push(createEnemy(x, y, 'sniper'));
+          } else if (enemyClass === 'ShieldedEnemy' || enemyClass === 'shielded') {
+            enemies.push(createEnemy(x, y, 'shielded'));
+          } else {
+            // Fallback para classes antigas que ainda não foram migradas (DiveEnemy, Tank, etc)
           enemies.push(new enemyClass(x, y));
+          }
         }
 
         return enemies;
       }
 
+      // ============================================
+      // [05] SISTEMA DE TEXTO (Feedback Visual)
+      // ============================================
       class DamageText {
         constructor(x, y, text, color = "yellow") {
           this.x = x;
@@ -2621,11 +3835,16 @@
         };
       }
 
-      // Adiciona saúde aos inimigos
+      // ============================================
+      // Adiciona saúde aos inimigos legados (NÃO usar para novos inimigos)
+      // Inimigos criados via createEnemy() já possuem saúde integrada
+      // ============================================
       Enemy = addHealthToEnemy(Enemy, 1);
-      BomberEnemy = addHealthToEnemy(BomberEnemy, 3 );
-      SniperEnemy = addHealthToEnemy(SniperEnemy, 4);
+      // BomberEnemy = addHealthToEnemy(BomberEnemy, 3); // Comentado - agora usa createEnemy('bomber')
+      // SniperEnemy = addHealthToEnemy(SniperEnemy, 4); // Comentado - agora usa createEnemy('sniper')
       DiveEnemy = addHealthToEnemy(DiveEnemy, 2);
+      // ShieldedEnemy - Comentado, agora usa createEnemy('shielded')
+      /*
       ShieldedEnemy = class extends addHealthToEnemy(ShieldedEnemy, 10) {
         takeDamage(amount = 1) {
           if (this.shielded) {
@@ -2639,12 +3858,13 @@
           }
         }
       };
+      */
       Tank = addHealthToEnemy(Tank, 5);
-      DroneEnemy = addHealthToEnemy(DroneEnemy, 1);
+      // DroneEnemy = addHealthToEnemy(DroneEnemy, 1); // Comentado - agora usa createEnemy('drone')
 
 
       // ============================================
-      // SISTEMA DE WAVES - CONFIGURÁVEL
+      // [15] SISTEMA DE WAVES
       // ============================================
       
       const WaveConfig = {
@@ -2741,7 +3961,7 @@
                   // Spawn individual
                   const x = canvas.width + 50 + Math.random() * 100;
                   const y = 50 + Math.random() * (canvas.height * 0.6);
-                  game.enemies.push(new Enemy(x, y));
+                  game.enemies.push(createEnemy(x, y, 'basic'));
                 }
               }, delay);
             })(formationDelay);
@@ -2821,16 +4041,16 @@
         const yMax = canvas.height - groundHeight - 50;
         const y = Math.random() * yMax;
 
-        if (tipo < 0.2) return [new BomberEnemy(x, y)];
+        if (tipo < 0.2) return [createEnemy(x, y, 'bomber')];
         if (tipo < 0.4)
           return spawnArrowFormationGeneric(
-            SniperEnemy,
+            'sniper',
             Math.floor(Math.random() * 1) + 3,
             ">"
           );
         if (tipo < 0.6)
           return spawnArrowFormationGeneric(
-            ShieldedEnemy,
+            'shielded',
             Math.floor(Math.random() * 3) + 3,
             "<"
           );
@@ -2882,8 +4102,12 @@
         return factory();
       }
 
+      // ============================================
+      // [21] GAME LOOP (Objeto Principal)
+      // ============================================
       const game = window.game = {
         debug: false, // Modo debug (ativa/desativa informações na tela)
+        devMode: false, // Modo desenvolvedor (painel de teste de inimigos)
         player: new Player(),
         projectiles: [],
         enemyProjectiles: [],
@@ -2997,6 +4221,9 @@
             new ParallaxLayer(IMAGES.parallax5, 1.0, 0),  // Vegetação distante
             new ParallaxLayer(IMAGES.parallax6, 1.5, 0),  // Vegetação próxima
           ];
+          
+          // Ajusta velocidade do parallax baseado no modo de controle inicial
+          this.parallaxLayers.forEach(layer => layer.updateSpeed(controlMode));
 
           for (let i = 0; i < 3; i++) {
             const result = spawnWithDistance(
@@ -3022,6 +4249,9 @@
 
         update() {
           if (this.gameOver) return;
+          
+            // Não atualiza o jogo se o player está morrendo
+          if (this.player.isDying) return;
           
           // Verifica se a wave foi completada
           WaveSystem.checkWaveComplete();
@@ -3170,6 +4400,9 @@
                 HitEffectManager.spawnEffect(p.x, p.y, e.hitEffect);
 
                 if (e.takeDamage && e.takeDamage(p.damage)) {
+                  // Cria explosão no centro do inimigo
+                  createExplosion(e.x + e.width / 2, e.y + e.height / 2, 0.8, 15);
+                  
                   this.enemies.splice(ei, 1);
                   // const newEnemy = novoInimigoAleatorio();
                   // if (newEnemy) {
@@ -3193,8 +4426,8 @@
                   const points = Math.floor(1 * this.comboSystem.multiplier);
                   this.score += points;
                   
-                  // Dropa moeda (30% de chance)
-                  if (Math.random() < 0.3) {
+                  // Dropa moeda (30% de chance) - respeitando limite
+                  if (Math.random() < 0.3 && this.coinsDropped.length < MAX_COINS_ON_SCREEN) {
                     this.coinsDropped.push(new CoinDrop(e.x, e.y, 1));
                   }
                   
@@ -3228,6 +4461,9 @@
                   HitEffectManager.spawnEffect(t.x, t.y, t.hitEffect);
                 }
                 if (t.takeDamage && t.takeDamage(p.damage)) {
+                  // Cria explosão maior para tank
+                  createExplosion(t.x + t.width / 2, t.y + t.height / 2, 1.5, 30);
+                  
                   this.tanks.splice(ti, 1);
                   // this.tanks.push(new Tank(canvas.width + Math.random() * 400));
                   
@@ -3238,7 +4474,7 @@
                   
                   // Dropa moedas (tanks sempre dropam 2-5 moedas)
                   const coinCount = Math.floor(Math.random() * 4) + 2;
-                  for (let i = 0; i < coinCount; i++) {
+                  for (let i = 0; i < coinCount && this.coinsDropped.length < MAX_COINS_ON_SCREEN; i++) {
                     const offsetX = (Math.random() - 0.5) * 40;
                     const offsetY = (Math.random() - 0.5) * 40;
                     this.coinsDropped.push(new CoinDrop(t.x + offsetX, t.y + offsetY, 2));
@@ -3275,27 +4511,16 @@
               if (this.player.shieldActive && this.player.shieldTimer > 0) {
                 this.player.shieldTimer = 0;
                 this.player.shieldActive = false;
-                this.damageTexts.push(
+              this.damageTexts.push(
                   new DamageText(this.player.x, this.player.y, "SHIELD!", "cyan")
                 );
               } else {
-              this.player.health--;
-              this.player.invincibilityTimer = 180;
-              this.damageTexts.push(
-                new DamageText(
-                  this.player.x,
-                  this.player.y,
-                  "-" + p.damage.toFixed(2),
-                  "red"
-                )
-              );
+                // Usa o novo método takeDamage com efeitos visuais
+                this.player.takeDamage(p.damage, p.x, p.y);
               }
               this.enemyProjectiles = this.enemyProjectiles.filter(
                 (ep) => ep !== p
               );
-              if (this.player.health <= 0) {
-                this.handleGameOver();
-              }
               return;
             }
           }
@@ -3315,18 +4540,12 @@
               if (this.player.shieldActive && this.player.shieldTimer > 0) {
                 this.player.shieldTimer = 0;
                 this.player.shieldActive = false;
-                this.damageTexts.push(
+              this.damageTexts.push(
                   new DamageText(this.player.x, this.player.y, "SHIELD!", "cyan")
                 );
               } else {
-              this.player.health--;
-              this.player.invincibilityTimer = 180;
-              this.damageTexts.push(
-                new DamageText(this.player.x, this.player.y, "-1", "red")
-              );
-              if (this.player.health <= 0) {
-                  this.handleGameOver();
-                }
+                // Usa o novo método takeDamage com efeitos visuais
+                this.player.takeDamage(1, e.x + e.width / 2, e.y + e.height / 2);
               }
               return;
             }
@@ -3420,10 +4639,14 @@
             });
           }
 
-          // Atualiza camadas de parallax
-          this.parallaxLayers.forEach(layer => layer.update());
-
+          // Atualiza camadas de parallax e chão APENAS quando:
+          // - Modo PLANE (sempre se move)
+          // - Modo HELICOPTER + airborne (no ar, espaço pressionado)
           if (this.player.airborne || controlMode === CONTROLSMODES.PLANE) {
+            // Move o parallax
+            this.parallaxLayers.forEach(layer => layer.update());
+            
+            // Move o chão
             this.grassXs = this.grassXs.map((x) => {
               x -= 1;
               if (x < -20) x = canvas.width;
@@ -3435,7 +4658,14 @@
         draw() {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           this.drawBackground();
+          
+          // Desenha player normal ou animação de morte
+          if (this.player.isDying) {
+            this.player.drawDeath();
+          } else {
           this.player.draw();
+          }
+          
           this.projectiles.forEach((p) => p.draw());
           this.enemyProjectiles.forEach((p) => p.draw());
           this.enemies.forEach((e) => e.draw());
@@ -3513,29 +4743,29 @@
 
           // Informações de debug (só exibe se debug estiver ativo)
           if (this.debug) {
-            ctx.fillStyle = "black";
-            ctx.font = "14px Arial";
-            ctx.fillText(
-              "Enemies: " + this.enemies.length,
-              canvas.width - 150,
-              30
-            );
-            ctx.fillText(
-              "Projectiles: " + this.projectiles.length,
-              canvas.width - 150,
-              50
-            );
-            ctx.fillText("FPS: " + this.fps, canvas.width - 150, 70);
-            ctx.fillText(
-              "Damage: " + this.player.primaryWeapon.damage,
-              canvas.width - 150,
-              90
-            );
-            ctx.fillText(
-              "Cooldown: " + this.player.primaryWeapon.cooldown,
-              canvas.width - 150,
-              110
-            );
+          ctx.fillStyle = "black";
+          ctx.font = "14px Arial";
+          ctx.fillText(
+            "Enemies: " + this.enemies.length,
+            canvas.width - 150,
+            30
+          );
+          ctx.fillText(
+            "Projectiles: " + this.projectiles.length,
+            canvas.width - 150,
+            50
+          );
+          ctx.fillText("FPS: " + this.fps, canvas.width - 150, 70);
+          ctx.fillText(
+            "Damage: " + this.player.primaryWeapon.damage,
+            canvas.width - 150,
+            90
+          );
+          ctx.fillText(
+            "Cooldown: " + this.player.primaryWeapon.cooldown,
+            canvas.width - 150,
+            110
+          );
           }
 
           // Desenha o combo
@@ -3573,7 +4803,7 @@
         }
 
           if (this.miniBoss) this.miniBoss.draw();
-          game.particles.forEach((p) => p.draw());
+          game.particles.forEach((p) => p.draw(ctx));
           if (!this.player.airborne && !this.gameOver) {
             ctx.font = "16px Arial";
             ctx.fillText("Pressione espaço para voar", 20, 80);
@@ -3635,12 +4865,12 @@
           // Desenha o chão
           const groundY = canvas.height - canvas.height * 0.1;
           const grassY = groundY - 20;
-          ctx.fillStyle = "#824f2b";
+          ctx.fillStyle = "#8b5237";
           ctx.fillRect(0, groundY, canvas.width, canvas.height * 0.1);
           
           // Desenha a grama
           for (let x of this.grassXs) {
-            ctx.drawImage(IMAGES.grass, x, grassY, 20, 20);
+            ctx.drawImage(IMAGES.grass, x, grassY, 18, 18);
           }
         },
 
@@ -3650,8 +4880,20 @@
             // Atualiza countdown sempre (mesmo pausado)
             this.countdownSystem.update();
             
-            // Só atualiza o resto se não estiver pausado
-            if (!this.isPaused) {
+            // Verifica animação de morte do player
+            if (this.player.isDying && !this.gameOver) {
+              const deathFinished = this.player.updateDeath();
+              if (deathFinished) {
+                this.handleGameOver();
+              }
+              // Atualiza partículas de fumaça durante a morte
+              this.player.smokeParticles.forEach(p => p.update());
+              this.player.smokeParticles = this.player.smokeParticles.filter(p => !p.dead);
+              // Atualiza partículas de explosão
+              game.particles = game.particles.filter((p) => !p.dead);
+              game.particles.forEach((p) => p.update());
+            } else if (!this.isPaused && !this.gameOver) {
+              // Só atualiza o resto se não estiver pausado, não estiver morrendo e não for game over
             this.update();
             }
             // Sempre desenha (para mostrar o estado pausado)
@@ -3663,7 +4905,7 @@
       };
 
       // ============================================
-      // SISTEMA DE SAVE/LOAD - LOCALSTORAGE
+      // [18] SISTEMA DE SAVE/LOAD
       // ============================================
       
       const SaveSystem = {
@@ -3754,7 +4996,7 @@
       };
       
       // ============================================
-      // SISTEMA DE LOJA
+      // [19] SISTEMA DE LOJA (Shop)
       // ============================================
       
       const ShopSystem = {
@@ -4155,10 +5397,125 @@
       `;
       document.head.appendChild(style);
       
-      // Inicializa a loja após o jogo
+      // ============================================
+      // [20] DEV TOOLS (Debug Panel)
+      // ============================================
+      
+      const DevTools = {
+        init() {
+          const closeBtn = document.getElementById('closeDevPanel');
+          closeBtn.addEventListener('click', () => this.toggleDevPanel());
+          
+          // Atualiza info a cada frame
+          setInterval(() => {
+            if (game.devMode) {
+              document.getElementById('devEnemyCount').textContent = game.enemies.length;
+              document.getElementById('devProjectileCount').textContent = game.projectiles.length;
+              document.getElementById('devWaveCount').textContent = WaveSystem.currentWave;
+            }
+          }, 100);
+        },
+        
+        toggleDevPanel() {
+          game.devMode = !game.devMode;
+          const panel = document.getElementById('devPanel');
+          panel.style.display = game.devMode ? 'block' : 'none';
+          console.log('Dev Mode:', game.devMode ? 'ON' : 'OFF');
+        },
+        
+        togglePause() {
+          game.isPaused = !game.isPaused;
+          console.log('Game paused:', game.isPaused);
+        },
+        
+        clearEnemies() {
+          game.enemies = [];
+          game.tanks = [];
+          game.miniBoss = null;
+          game.bossActive = false;
+          // Limpa também projéteis inimigos
+          game.enemyProjectiles = [];
+          console.log('All enemies cleared');
+        },
+        
+        addCoins(amount) {
+          game.coins += amount;
+          console.log('Added', amount, 'coins. Total:', game.coins);
+        },
+        
+        forceDeath() {
+          game.player.die();
+          console.log('💀 Forçando animação de morte do player...');
+        },
+        
+        spawnEnemy(type) {
+          const spawnX = canvas.width - 50;
+          const spawnY = canvas.height / 2;
+          
+          let enemy;
+          switch(type) {
+            case 'Enemy':
+              enemy = createEnemy(spawnX, spawnY, 'basic');
+              game.enemies.push(enemy);
+              break;
+            case 'DroneEnemy':
+              enemy = createEnemy(spawnX, spawnY, 'drone');
+              game.enemies.push(enemy);
+              break;
+            case 'BomberEnemy':
+              enemy = createEnemy(spawnX, spawnY, 'bomber');
+              game.enemies.push(enemy);
+              break;
+            case 'SniperEnemy':
+              enemy = createEnemy(spawnX, spawnY, 'sniper');
+              game.enemies.push(enemy);
+              break;
+            case 'DiveEnemy':
+              enemy = new DiveEnemy(spawnX, spawnY); // Dive precisa de lógica especial
+              game.enemies.push(enemy);
+              break;
+            case 'ShieldedEnemy':
+              enemy = createEnemy(spawnX, spawnY, 'shielded');
+              game.enemies.push(enemy);
+              break;
+            case 'MiniBoss':
+              enemy = new MiniBoss(spawnX, spawnY);
+              game.enemies.push(enemy);
+              break;
+            case 'Tank':
+              enemy = new Tank(spawnX, spawnY);
+              game.tanks.push(enemy);
+              break;
+          }
+          
+          console.log('Spawned:', type);
+        },
+        
+        spawnFormation(type) {
+          if (type === 'arrow') {
+            WaveSystem.spawnArrowFormationGeneric(DroneEnemy, 5);
+            console.log('Spawned arrow formation');
+          } else if (type === 'drone') {
+            WaveSystem.spawnDroneFormation(5);
+            console.log('Spawned drone formation');
+          }
+        }
+      };
+      
+      // Atalho de teclado para abrir dev panel (tecla P)
+      document.addEventListener('keydown', (e) => {
+        if (e.code === 'KeyP' && !e.repeat) {
+          DevTools.toggleDevPanel();
+        }
+      });
+      
+      // ============================================
+      // [22] INICIALIZAÇÃO DO JOGO
+      // ============================================
       loadImages(ASSETS, () => {
         game.init();
         ShopSystem.init();
+        DevTools.init();
       });
     </script>
   </body>
