@@ -1,5 +1,6 @@
 import Image from "next/image";
 import styles from "./page.module.css";
+import Link from "next/link";
 
 export default function Home() { 
   
@@ -26,9 +27,12 @@ export default function Home() {
 
         </div>
       </div>
-       <div className="container">
-          <a  href="/games/shooter/index.html" className="button button-primary"> Thank for visiting  enjoy the game ? <span className="emoji">🚀</span></a>
-       </div>
+      <Link 
+        href="/games"
+        className="transition-colors"
+      >
+        Thank for visiting  enjoy the game ? ( click here to play <span className="emoji"> 🚀 </span> )
+      </Link>
     </main>
   );
 }
