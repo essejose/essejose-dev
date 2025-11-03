@@ -30,16 +30,43 @@ export default function RootLayout({
         const idioma = detectarIdioma();
 
         if (idioma === "pt") {
-          console.log("%c🚀 Olá, Dev curioso!", "font-size: 20px; font-weight: bold; color: #4CAF50;");
-          console.log("%cObrigado por explorar o código-fonte!", "font-size: 16px; color: #2196F3;");
-          console.log("%cÉ como levantar o capô de um carro e ver o motor funcionando.", "color: #888;"); 
-          console.log("%cFeito com 🤖 por Jose", "color: #e91e63;");
+          console.log("%c╔══════════════════════════════════════════╗", "color:#00e676;");
+          console.log("%c║ 🚀 Olá, Dev curioso!                     ║", "color:#00e676; font-weight:bold;");
+          console.log("%c║ 👀 Vendo o console? Isso é um bom sinal! ║", "color:#00e676;");
+          console.log("%c║ 🧠 Aqui é onde a mágica acontece.        ║", "color:#00e676;");
+          console.log("%c║ 💻 Feito com 🤖 e ☕ por Jose             ║", "color:#00e676;");
+          console.log("%c╚══════════════════════════════════════════╝", "color:#00e676;");
+          console.log("%c💡 Dica: tente digitar %cgetSecret() %c😉", "color:#888;", "color:#2196F3; font-weight:bold;", "color:#888;");
         } else {
-          console.log("%c🚀 Hello, curious Dev!", "font-size: 20px; font-weight: bold; color: #4CAF50;");
-          console.log("%cThanks for checking under the hood!", "font-size: 16px; color: #2196F3;");
-          console.log("%cIt’s like lifting the hood and seeing the engine run.", "color: #888;"); 
-          console.log("%cMade with 🤖 by Jose", "color: #e91e63;");
+          console.log("%c╔══════════════════════════════════════════╗", "color:#00e676;");
+          console.log("%c║ 🚀 Hello, curious Dev!                   ║", "color:#00e676; font-weight:bold;");
+          console.log("%c║ 👀 Peeking at the console? Nice move!    ║", "color:#00e676;");
+          console.log("%c║ 🧠 This is where the magic happens.      ║", "color:#00e676;");
+          console.log("%c║ 💻 Made with 🤖 and ☕ by Jose            ║", "color:#00e676;");
+          console.log("%c╚══════════════════════════════════════════╝", "color:#00e676;");
+          console.log("%c💡 Tip: try typing %cgetSecret() %c😉", "color:#888;", "color:#2196F3; font-weight:bold;", "color:#888;");
         }
+
+        // Opcional: easter egg interativo
+        window.getSecret = () => {
+          window.dataLayer = window.dataLayer || [];
+          window.dataLayer.push({
+            'event': 'easter_egg',
+            'event_category': 'easter_egg',
+            'event_label': 'get_secret'
+          });
+        if (idioma === "pt") {
+          console.log("%c╔═══════════════════════════════════════════════════════════╗", "color:#00e676;");
+          console.log("%c║ 🔮 O segredo é simples: não existe ingrediente secreto 🐼║", "color:#00e676; font-weight:bold;");
+            console.log("%c║ ✨ Aprender, quebrar e criar — é assim que se evolui. ║", "color:#00e676;");
+            console.log("%c╚═════════════════════════════════════════════════════════╝", "color:#00e676;");
+          } else {
+            console.log("%c╔═══════════════════════════════════════════════════════════╗", "color:#00e676;");
+            console.log("%c║ 🔮 The secret is simple: there is no secret ingredient 🐼║", "color:#00e676; font-weight:bold;");
+            console.log("%c║ ✨ Learn, break, and create — that’s how you evolve.    ║", "color:#00e676;");
+            console.log("%c╚══════════════════════════════════════════════════════════╝", "color:#00e676;");
+          }
+        };
         `}} />
      </head>
       <GoogleTagManager gtmId="GTM-W6NSHMJS" /> 
