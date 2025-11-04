@@ -55,6 +55,7 @@ export default function RootLayout({
             'event_category': 'easter_egg',
             'event_label': 'get_secret'
           });
+          let idioma = detectarIdioma()
         if (idioma === "pt") {
           console.log("%c╔═══════════════════════════════════════════════════════════╗", "color:#00e676;");
           console.log("%c║ 🔮 O segredo é simples: não existe ingrediente secreto 🐼║", "color:#00e676; font-weight:bold;");

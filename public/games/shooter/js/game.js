@@ -86,6 +86,10 @@
         parallax4: "./images/parallax-2/3.png",
         parallax5: "./images/parallax-2/2.png",
         parallax6: "./images/parallax-2/1.png",
+        pilot_portrait: "./images/characters/pilot_portrait.png",
+        assistant: "./images/characters/pilot-2.png",
+        commander: "./images/characters/commander.png",
+        rival_commander: "./images/characters/rival_commander.png",
       };
 
       const IMAGES = {};
@@ -3340,27 +3344,88 @@
       
       const WaveConfig = {
         // Configuração de waves específicas (1-20)
+        // Especifique a quantidade de cada tipo: basic, drone, bomber, sniper, shielded
         waves: {
-          1: { enemies: 5, tanks: 0, boss: false },
-          2: { enemies: 6, tanks: 0, boss: false },
-          3: { enemies: 7, tanks: 1, boss: false },
-          4: { enemies: 8, tanks: 1, boss: false },
-          5: { enemies: 10, tanks: 2, boss: true }, // Boss
-          6: { enemies: 9, tanks: 2, boss: false },
-          7: { enemies: 10, tanks: 2, boss: false },
-          8: { enemies: 12, tanks: 3, boss: false },
-          9: { enemies: 13, tanks: 3, boss: false },
-          10: { enemies: 15, tanks: 3, boss: true }, // Boss
-          11: { enemies: 14, tanks: 4, boss: false },
-          12: { enemies: 15, tanks: 4, boss: false },
-          13: { enemies: 16, tanks: 4, boss: false },
-          14: { enemies: 17, tanks: 5, boss: false },
-          15: { enemies: 20, tanks: 5, boss: true }, // Boss
-          16: { enemies: 18, tanks: 5, boss: false },
-          17: { enemies: 19, tanks: 6, boss: false },
-          18: { enemies: 20, tanks: 6, boss: false },
-          19: { enemies: 22, tanks: 7, boss: false },
-          20: { enemies: 25, tanks: 8, boss: true }, // Boss
+          1: { basic:3,  boss: false, 
+            dialog: [{
+            id: 0,
+            speaker: "Piloto",
+            portrait: ASSETS.pilot_portrait,
+            paused: false,
+            type: "tutorial",
+            messages: [
+              "Isso parece fácil demais!",
+              "Vou testar a minha habilidade!",
+            ],
+          }] 
+        },
+          2: { 
+            basic: 1, 
+            tanks: 1, 
+            boss: false,
+            dialog: [
+              {
+                id: 1,
+                speaker: "Comandante",
+                portrait: ASSETS.commander,
+                type: "tutorial",
+                paused: false,
+                messages: [
+                  "Oficial, você está pronto para a missão?",
+                  "Você é o novo piloto da nossa equipe.", 
+                  "Boa sorte!"
+                ],
+              },
+              {
+                id:2,
+                speaker: "Assistente",
+                portrait: ASSETS.assistant,
+                type: "tutorial",
+                paused: false,
+                messages: [
+                  "Olá Piloto",
+                  "Sou o assistente da equipe!",
+                  "Use a loja para comprar armas e upgrades.",  
+                  "Boa sorte!"
+                ],
+              }
+            ]
+          },
+          3: { basic:1, drone:1, bomber: 6, tanks: 1, boss: false,
+            dialog: [{
+              speaker: "Comandante do Exército Rival",
+              type: "tutorial",
+              id: 3,
+              portrait: ASSETS.rival_commander,
+              paused: false, 
+              messages: [
+                "Piloto",
+                "HA HA HA!",
+                "Acha que você é capaz de me derrotar?",
+                "...",
+                "HA HA HA!",
+                "Boa sorte!"
+              ],
+            }]
+
+          },
+          4: { basic: 4, drone: 4, bomber: 5, sniper: 5, tanks: 1, boss: false },
+          5: { basic: 2, drone: 3, bomber: 2, sniper: 2, shielded: 1, tanks: 2, boss: true },
+          6: { basic: 3, drone: 2, bomber: 2, sniper: 1, shielded: 1, tanks: 2, boss: false },
+          7: { drone: 4, bomber: 3, sniper: 2, shielded: 1, tanks: 2, boss: false },
+          8: { basic: 3, drone: 3, bomber: 3, sniper: 2, shielded: 1, tanks: 3, boss: false },
+          9: { basic: 2, drone: 4, bomber: 3, sniper: 3, shielded: 1, tanks: 3, boss: false },
+          10: { drone: 4, bomber: 4, sniper: 4, shielded: 3, tanks: 3, boss: true },
+          11: { basic: 3, drone: 4, bomber: 3, sniper: 2, shielded: 2, tanks: 4, boss: false },
+          12: { drone: 4, bomber: 4, sniper: 4, shielded: 3, tanks: 4, boss: false },
+          13: { basic: 2, drone: 5, bomber: 4, sniper: 3, shielded: 2, tanks: 4, boss: false },
+          14: { drone: 5, bomber: 4, sniper: 5, shielded: 3, tanks: 5, boss: false },
+          15: { basic: 3, drone: 5, bomber: 5, sniper: 4, shielded: 3, tanks: 5, boss: true },
+          16: { drone: 5, bomber: 5, sniper: 5, shielded: 3, tanks: 5, boss: false },
+          17: { basic: 2, drone: 6, bomber: 5, sniper: 4, shielded: 2, tanks: 6, boss: false },
+          18: { drone: 6, bomber: 6, sniper: 5, shielded: 3, tanks: 6, boss: false },
+          19: { basic: 3, drone: 6, bomber: 6, sniper: 6, shielded: 1, tanks: 7, boss: false },
+          20: { drone: 6, bomber: 6, sniper: 6, shielded: 7, tanks: 8, boss: true },
         },
         
         // Configuração padrão para waves 21+ (escala infinitamente)
@@ -3369,12 +3434,19 @@
             return this.waves[wave];
           }
           
-          // Para waves 21+, escala automaticamente
-          const enemies = Math.min(20 + Math.floor((wave - 20) * 1.5), 40);
+          // Para waves 21+, escala automaticamente com tipos variados
+          const totalEnemies = Math.min(20 + Math.floor((wave - 20) * 1.5), 40);
           const tanks = Math.min(5 + Math.floor((wave - 20) / 2), 15);
           const boss = wave % 5 === 0; // Boss a cada 5 waves
           
-          return { enemies, tanks, boss };
+          // Distribuição automática para waves 21+
+          const basic = Math.floor(totalEnemies * 0.1);
+          const drone = Math.floor(totalEnemies * 0.25);
+          const bomber = Math.floor(totalEnemies * 0.25);
+          const sniper = Math.floor(totalEnemies * 0.2);
+          const shielded = totalEnemies - basic - drone - bomber - sniper; // Resto vai para shielded
+          
+          return { basic, drone, bomber, sniper, shielded, tanks, boss };
         },
         
         // Recompensa de moedas por wave
@@ -3384,93 +3456,222 @@
           const config = this.getWaveConfig(wave);
           const bossBonus = config.boss ? 50 : 0;
           
-          return baseReward + waveBonus + bossBonus;
+          // Calcula total de inimigos
+          const totalEnemies = (config.basic || 0) + (config.drone || 0) + 
+                              (config.bomber || 0) + (config.sniper || 0) + 
+                              (config.shielded || 0);
+          const enemyBonus = totalEnemies * 2;
+          
+          return baseReward + waveBonus + bossBonus + enemyBonus;
         }
       };
       
       const WaveSystem = {
-        currentWave: 0,
+        currentWave: 1,
         waveActive: false,
-        
+        hasSpawned: false,  
         startWave(waveNumber) {
           this.currentWave = waveNumber;
           this.waveActive = true;
-          
-          // Spawna os inimigos da wave
+          this.hasSpawned = false; // zera a cada wave
           this.spawnWaveEnemies(waveNumber);
         },
         
         spawnWaveEnemies(wave) {
           const config = WaveConfig.getWaveConfig(wave);
           
-          // Spawna inimigos em formações variadas
+          // Cria lista de tipos de inimigos baseado na configuração
+          const enemyTypes = [];
+          
+          // Adiciona cada tipo conforme especificado
+          for (let i = 0; i < (config.basic || 0); i++) {
+            enemyTypes.push('basic');
+          }
+          for (let i = 0; i < (config.drone || 0); i++) {
+            enemyTypes.push('drone');
+          }
+          for (let i = 0; i < (config.bomber || 0); i++) {
+            enemyTypes.push('bomber');
+          }
+          for (let i = 0; i < (config.sniper || 0); i++) {
+            enemyTypes.push('sniper');
+          }
+          for (let i = 0; i < (config.shielded || 0); i++) {
+            enemyTypes.push('shielded');
+          }
+          
+          // Embaralha a lista para variar a ordem de spawn
+          for (let i = enemyTypes.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [enemyTypes[i], enemyTypes[j]] = [enemyTypes[j], enemyTypes[i]];
+          }
+          
+          // Spawna inimigos baseado nos tipos
           let spawnedEnemies = 0;
           let formationDelay = 0;
           
-          while (spawnedEnemies < config.enemies) {
-            const remaining = config.enemies - spawnedEnemies;
+          while (spawnedEnemies < enemyTypes.length) {
+            const remaining = enemyTypes.length - spawnedEnemies;
+            const enemyType = enemyTypes[spawnedEnemies];
             const formationType = Math.random();
             
-            // Closure para capturar delay atual
-            ((delay) => {
+            // Closure para capturar delay atual e tipo
+            ((delay, type) => {
               setTimeout(() => {
-                if (formationType < 0.3 && remaining >= 5) {
-                  // Formação em seta
-                  const formation = spawnArrowFormationGeneric(Enemy, Math.min(5, remaining), "<");
-                  if (formation) {
-                    const enemies = Array.isArray(formation) ? formation : [formation];
-                    game.enemies.push(...enemies);
-                  }
-                } else if (formationType < 0.5 && remaining >= 4 && wave >= 3) {
-                  // Formação de drones (wave 3+)
-                  const formation = spawnDroneFormation(Math.min(4, remaining));
+                if (formationType < 0.3 && remaining >= 5 && type === 'drone') {
+                  // Formação de drones (só para drones)
+                  const formation = spawnDroneFormation(Math.min(5, remaining));
                   if (formation) {
                     const enemies = Array.isArray(formation) ? formation : [formation];
                     game.enemies.push(...enemies);
                   }
                 } else {
-                  // Spawn individual
+                  // Spawn individual baseado no tipo especificado
                   const x = canvas.width + 50 + Math.random() * 100;
                   const y = 50 + Math.random() * (canvas.height * 0.6);
-                  game.enemies.push(createEnemy(x, y, 'basic'));
+                  game.enemies.push(createEnemy(x, y, type));
+                  WaveSystem.hasSpawned = true; // 👈
                 }
               }, delay);
-            })(formationDelay);
+            })(formationDelay, enemyType);
             
-            // Incrementa contadores
-            if (formationType < 0.3 && remaining >= 5) {
-              spawnedEnemies += 5;
-            } else if (formationType < 0.5 && remaining >= 4 && wave >= 3) {
-              spawnedEnemies += 4;
+            // Incrementa contador
+            if (formationType < 0.3 && remaining >= 5 && enemyType === 'drone') {
+              spawnedEnemies += Math.min(5, remaining);
             } else {
               spawnedEnemies++;
             }
             
-            formationDelay += 1500; // 1.5 segundos entre formações
+            formationDelay += 1500; // 1.5 segundos entre spawns
           }
           
-          // Spawna tanks com delay
-          for (let i = 0; i < config.tanks; i++) {
+          // Spawna todos os tanks juntos após todas as formações de inimigos
+          if (config.tanks > 0) {
             setTimeout(() => {
-              const x = canvas.width + 100 + Math.random() * 200;
-              game.tanks.push(new Tank(x));
-            }, (i + 1) * 2000 + formationDelay); // Após as formações
+              // Verifica se a wave ainda está ativa antes de spawnar
+              if (this.waveActive && WaveSystem.currentWave === wave) {
+                for (let i = 0; i < config.tanks; i++) {
+                  const x = canvas.width + 100 + (i * 150) + Math.random() * 100;
+                  game.tanks.push(new Tank(x));
+                  WaveSystem.hasSpawned = true; // 👈
+                }
+              }
+            }, formationDelay + 1000); // 1 segundo após todas as formações
           }
           
-          // Spawna boss depois de todos os inimigos
+          // Spawna boss depois de todos os inimigos (mas não limpa os outros inimigos)
           if (config.boss) {
             setTimeout(() => {
-              game.enemies.push(new MiniBoss(canvas.width + 100, canvas.height / 2));
+              // Verifica se a wave ainda está ativa antes de spawnar
+              if (this.waveActive && WaveSystem.currentWave === wave) {
+                game.enemies.push(new MiniBoss(canvas.width + 100, canvas.height / 2));
+                WaveSystem.hasSpawned = true; // 👈
+                game.bossActive = true; // Marca que há boss ativo
+              }
             }, 3000 + formationDelay); // Após tudo
           }
         },
         
         checkWaveComplete() {
           // Verifica se todos os inimigos e tanks foram mortos
-          if (this.waveActive && game.enemies.length === 0 && game.tanks.length === 0) {
-            this.waveActive = false;
-            this.onWaveComplete();
-          }
+          // IMPORTANTE: Só verifica se a wave está ativa E já começou (currentWave > 0)
+          // if (this.waveActive && this.currentWave > 0 && game.enemies.length === 0 && game.tanks.length === 0 && !game.bossActive) {
+          //   this.waveActive = false;
+
+          //   // DialogSystem.show({
+          //   //   speaker: "Comandante",
+          //   //   portrait: IMAGES.commander || ASSETS.commander,
+          //   //   messages: [
+          //   //     "Wave " + this.currentWave + " completa!",
+          //   //     "Próxima wave " + (this.currentWave + 1) + " em breve!",
+          //   //   ],
+          //   // });
+            
+          //   this.onWaveComplete();
+          // }
+
+           if (!this.waveActive || this.currentWave <= 0) return;
+           if (!this.hasSpawned) return; 
+           if (game.enemies.length === 0 && game.tanks.length === 0 && !game.bossActive) {
+             this.waveActive = false;
+             let that = this;
+             // Verifica se a wave tem um diálogo configurado
+             const config = WaveConfig.getWaveConfig(this.currentWave);
+             
+             if (config.dialog) {
+               // Verifica se é um array de diálogos (múltiplos) ou um único diálogo
+               if (Array.isArray(config.dialog) && config.dialog.length > 0) {
+                 // Múltiplos diálogos sequenciais
+                 let dialogIndex = 0;
+                 console.log(dialogIndex);
+                
+                 const showNextDialog = () => {
+                   if (dialogIndex < config.dialog.length) {
+                     const dialog = config.dialog[dialogIndex];
+                     const currentIndex = dialogIndex; // Captura o índice atual
+                     
+                     DialogSystem.show({
+                       speaker: dialog.speaker || "Comandante",
+                       portrait: dialog.portrait || IMAGES.commander || ASSETS.commander,
+                       messages: dialog.messages || [],
+                       type: dialog.type, // Passa a propriedade type (ex: "tutorial")
+                       id: dialog.id, // Passa o ID do diálogo/tutorial
+                       paused: dialog.paused !== undefined ? dialog.paused : true, // Respeita a propriedade paused do diálogo
+                       buttonNext: dialog.buttonNext,
+                       buttonClose: dialog.buttonClose,
+                       onClose: () => {
+                         // Incrementa o índice para o próximo diálogo
+                         dialogIndex++;
+                         console.log('Diálogo', currentIndex, 'fechado. Próximo índice:', dialogIndex);
+                         
+                         // Pequeno delay para garantir que o diálogo anterior foi completamente fechado
+                         setTimeout(() => {
+                           if (dialogIndex < config.dialog.length) {
+                             // Ainda há mais diálogos, mostra o próximo
+                             console.log('Mostrando próximo diálogo:', dialogIndex);
+                             showNextDialog();
+                           } else {
+                             // Todos os diálogos foram mostrados, completa a wave
+                             console.log('Todos os diálogos concluídos. Completando wave.');
+                             WaveSystem.onWaveComplete();
+                           }
+                         }, 100);
+                       }
+                     });
+                   } else {
+                     // Se não houver mais diálogos, completa a wave
+                     console.log('Sem mais diálogos. Completando wave.');
+                     WaveSystem.onWaveComplete();
+                   }
+                 };
+                 
+                 // Inicia o primeiro diálogo
+                 showNextDialog();
+               } else {
+                 // Diálogo único (objeto)
+                 DialogSystem.show({
+                   speaker: config.dialog.speaker || "Comandante",
+                   portrait: config.dialog.portrait || IMAGES.commander || ASSETS.commander,
+                   messages: config.dialog.messages || [
+                     "Wave " + this.currentWave + " completa!",
+                     "Próxima wave " + (this.currentWave + 1) + " em breve!",
+                   ],
+                   type: config.dialog.type, // Passa a propriedade type (ex: "tutorial")
+                   id: config.dialog.id, // Passa o ID do diálogo/tutorial
+                   paused: config.dialog.paused !== undefined ? config.dialog.paused : true, // Respeita a propriedade paused do diálogo
+                   buttonNext: config.dialog.buttonNext,
+                   buttonClose: config.dialog.buttonClose,
+                   onClose: () => {
+                     // Após o diálogo fechar, completa a wave
+                     this.onWaveComplete();
+                   }
+                 });
+               }
+             } else {
+               // Se não tiver diálogo configurado, completa direto
+               this.onWaveComplete();
+             }
+           }
         },
         
         onWaveComplete() {
@@ -3481,27 +3682,29 @@
           // Aguarda um frame antes de iniciar próxima wave (evita loop infinito)
           setTimeout(() => {
             const nextWave = this.currentWave + 1;
+            this.currentWave = nextWave;
+            this.waveActive = true;
             this.startWave(nextWave);
           }, 100);
         }
       };
 
-      const waves = [
-            () => spawnArrowFormationGeneric(Enemy, 5),
-            () => spawnDroneFormation(6),
-            () => game.enemies.push(new MiniBoss(canvas.width + 100, 200)),
-            () => spawnArrowFormationGeneric(SniperEnemy, 7),
-            () => {
-                spawnArrowFormationGeneric(Enemy, 3);
-                spawnArrowFormationGeneric(DroneEnemy, 6);
-            },
-            () => game.enemies.push(new MiniBoss(canvas.width + 100, 250)),
-            ];
+      // const waves = [
+      //       () => spawnArrowFormationGeneric(Enemy, 5),
+      //       () => spawnDroneFormation(6),
+      //       () => game.enemies.push(new MiniBoss(canvas.width + 100, 200)),
+      //       () => spawnArrowFormationGeneric(SniperEnemy, 7),
+      //       () => {
+      //           spawnArrowFormationGeneric(Enemy, 3);
+      //           spawnArrowFormationGeneric(DroneEnemy, 6);
+      //       },
+      //       () => game.enemies.push(new MiniBoss(canvas.width + 100, 250)),
+      //       ];
 
-            let currentWave = 0;
-            let waveCountdown = 180; // 3 segundos
-            let showingWaveText = false;
-            let waveTextTimer = 60;
+      //       let currentWave = 0;
+      //       let waveCountdown = 180; // 3 segundos
+             let showingWaveText = false;
+      //       let waveTextTimer = 60;
 
 
       function novoInimigoAleatorio() {
@@ -3650,12 +3853,24 @@
           
           if (this.lives <= 0) {
             // Perdeu todas as vidas - limpa save
+            DialogSystem.show({ 
+              id: 5,
+              speaker: "Comandante do Exército Rival",
+              paused: false,
+              portrait: ASSETS.rival_commander,
+              messages: [
+                "HA HA HA!",  
+              ],
+            });
+
             SaveSystem.clear();
             
             // Reseta tudo para valores iniciais
             setTimeout(() => {
               this.lives = 3;
-              this.coins = 0;
+              this.coins = 0; 
+
+              localStorage.removeItem('shooter_tutorials_executed');
               this.highScore = 0;
               this.highWave = 0;
               this.reset();
@@ -3665,8 +3880,10 @@
             // Ainda tem vidas - salva progresso e reinicia
             SaveSystem.save();
             setTimeout(() => {
+             
               this.reset();
               this.gameOver = false;
+              WaveSystem.currentWave = 0;
               WaveSystem.startWave(1);
             }, 2000);
           }
@@ -3696,16 +3913,16 @@
           // Ajusta velocidade do parallax baseado no modo de controle inicial
           this.parallaxLayers.forEach(layer => layer.updateSpeed(controlMode));
 
-          for (let i = 0; i < 3; i++) {
-            const result = spawnWithDistance(
-              () => new Tank(canvas.width + i * 400),
-              [...this.enemies, ...this.tanks]
-            );
-            if (result) {
-              const tanks = Array.isArray(result) ? result : [result];
-              this.tanks.push(...tanks);
-            }
-          }
+          // for (let i = 0; i < 3; i++) {
+          //   const result = spawnWithDistance(
+          //     () => new Tank(canvas.width + i * 400),
+          //     [...this.enemies, ...this.tanks]
+          //   );
+          //   if (result) {
+          //     const tanks = Array.isArray(result) ? result : [result];
+          //     this.tanks.push(...tanks);
+          //   }
+          // }
 
           this.grassXs = Array.from(
             { length: Math.ceil(canvas.width / 20) + 2 },
@@ -3725,6 +3942,8 @@
           if (this.player.isDying) return;
           
           // Verifica se a wave foi completada
+        
+        
           WaveSystem.checkWaveComplete();
           
           this.player.update();
@@ -4070,30 +4289,21 @@
             }
           }
 
-          // mini-chefe
-          if (!this.miniBoss && this.score >= 25 && this.bossTimer <= 0) {
-            this.miniBoss = new MiniBoss(
-              canvas.width + 50,
-              canvas.height / 2 - 40
-            );
-            this.enemies = []; // limpa inimigos normais para dar espaço
+          // REMOVIDO: Sistema antigo de boss que limpava inimigos
+          // O boss agora é controlado pelo WaveSystem.spawnWaveEnemies()
+          // Os bosses são spawnados como parte do array game.enemies
+          // e não devem limpar os outros inimigos
+          
+          // Verifica se há MiniBoss no array de enemies (do novo sistema)
+          const miniBossInEnemies = this.enemies.find(e => e instanceof MiniBoss);
+          
+          if (miniBossInEnemies) {
+            // Marca que há boss ativo para o sistema de waves
             this.bossActive = true;
-          } else if (!this.miniBoss) {
-            this.bossTimer--;
-          }
-
-          if (this.miniBoss) {
-            this.miniBoss.update();
-            if (this.miniBoss?.dead) {
-              this.miniBoss = null;
-              this.bossTimer = 2500;
-              this.bossActive = false;
-            }
-          }
-
-          if (this.miniBoss) {
+            
+            // Processa colisões com projéteis do player
             this.projectiles.forEach((p, pi) => {
-              const b = this.miniBoss;
+              const b = miniBossInEnemies;
               const hit =
                 p.x < b.x + b.width &&
                 p.x + p.width > b.x &&
@@ -4108,6 +4318,9 @@
                 );
               }
             });
+          } else {
+            // Se não há boss, desativa a flag
+            this.bossActive = false;
           }
 
           // Atualiza camadas de parallax e chão APENAS quando:
@@ -4869,6 +5082,511 @@
       document.head.appendChild(style);
       
       // ============================================
+      // [19.5] SISTEMA DE DIÁLOGO
+      // ============================================
+      
+      const DialogSystem = {
+        isOpen: false,
+        currentDialog: null,
+        currentIndex: 0,
+        onCloseCallback: null,
+        typewriterInterval: null,
+        isTyping: false,
+        
+        /**
+         * Inicializa o sistema de diálogo
+         */
+        init() {
+          const dialogModal = document.getElementById('dialogModal');
+          const closeDialog = document.getElementById('closeDialog');
+          const dialogNext = document.getElementById('dialogNext');
+          
+          // Fechar diálogo
+          closeDialog.addEventListener('click', () => this.close());
+          dialogModal.addEventListener('click', (e) => {
+            if (e.target === dialogModal) this.close();
+          });
+          
+          // Botão próximo
+          dialogNext.addEventListener('click', () => this.next());
+          
+          // Tecla ESC para fechar
+          document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.isOpen) {
+              this.close();
+            }
+            // Enter ou Espaço para próximo (funciona mesmo durante digitação)
+            if ((e.key === 'Enter' || e.key === ' ') && this.isOpen && !this.hasChoices()) {
+              e.preventDefault();
+              this.next();
+            }
+          });
+        },
+        
+        /**
+         * Verifica se um tutorial já foi executado
+         * @param {number|string} tutorialId - ID do tutorial
+         * @returns {boolean} - true se já foi executado, false caso contrário
+         */
+        isTutorialExecuted(tutorialId) {
+          if (tutorialId === undefined || tutorialId === null) return false;
+          
+          try {
+            const executedTutorials = localStorage.getItem('shooter_tutorials_executed');
+            if (!executedTutorials) return false;
+            
+            const tutorials = JSON.parse(executedTutorials);
+            return Array.isArray(tutorials) && tutorials.includes(tutorialId.toString());
+          } catch (e) {
+            console.error('DialogSystem: Erro ao verificar tutorial executado', e);
+            return false;
+          }
+        },
+        
+        /**
+         * Marca um tutorial como executado no localStorage
+         * @param {number|string} tutorialId - ID do tutorial
+         */
+        markTutorialAsExecuted(tutorialId) {
+          if (tutorialId === undefined || tutorialId === null) return;
+          
+          try {
+            const executedTutorials = localStorage.getItem('shooter_tutorials_executed');
+            let tutorials = [];
+            
+            if (executedTutorials) {
+              tutorials = JSON.parse(executedTutorials);
+              if (!Array.isArray(tutorials)) tutorials = [];
+            }
+            
+            const idStr = tutorialId.toString();
+            if (!tutorials.includes(idStr)) {
+              tutorials.push(idStr);
+              localStorage.setItem('shooter_tutorials_executed', JSON.stringify(tutorials));
+            }
+          } catch (e) {
+            console.error('DialogSystem: Erro ao salvar tutorial executado', e);
+          }
+        },
+        
+        /**
+         * Mostra um diálogo
+         * @param {Object} dialog - Objeto de diálogo com estrutura:
+         *   {
+         *     speaker: "Nome do Personagem",
+         *     portrait: "caminho/para/imagem.png", // opcional - retrato do personagem
+         *     messages: ["Mensagem 1", "Mensagem 2", ...],
+         *     type: "tutorial", // opcional - se for "tutorial", verifica localStorage antes de mostrar
+         *     id: 0, // opcional - ID do tutorial (necessário se type: "tutorial")
+         *     paused: true, // opcional - se deve pausar o jogo (padrão: true)
+         *     buttonNext: "Próximo", // opcional - texto do botão "Próximo" (padrão: "Próximo")
+         *     buttonClose: "Fechar", // opcional - texto do botão "Fechar" (padrão: "Fechar")
+         *     choices: [{text: "Opção 1", action: function() {...}}, ...], // opcional
+         *     onClose: function() {...} // opcional
+         *   }
+         */
+        show(dialog) {
+          if (!dialog || !dialog.messages || dialog.messages.length === 0) {
+            console.warn('DialogSystem: Diálogo inválido');
+            return;
+          }
+          
+          // Verifica se é um tutorial e se já foi executado
+          if (dialog.type === 'tutorial' && dialog.id !== undefined && dialog.id !== null) {
+            if (this.isTutorialExecuted(dialog.id)) {
+              // Tutorial já foi executado, não mostra mas chama o callback se existir
+              console.log('DialogSystem: Tutorial', dialog.id, 'já foi executado, pulando...');
+              if (dialog.onClose && typeof dialog.onClose === 'function') {
+                dialog.onClose();
+              }
+              return;
+            }
+          }
+          
+          this.currentDialog = dialog;
+          this.currentIndex = 0;
+          this.onCloseCallback = dialog.onClose || null;
+          
+          // Define textos padrão dos botões se não fornecidos
+          this.currentDialog.buttonNext = dialog.buttonNext || 'Próximo';
+          this.currentDialog.buttonClose = dialog.buttonClose || 'Fechar';
+          
+          // Verifica se deve pausar o jogo (padrão: true)
+          const shouldPause = dialog.paused !== false; // Se não for especificado ou for true, pausa
+          
+          // Pausa o jogo se necessário e se estiver rodando
+          if (shouldPause && window.game && !window.game.isPaused) {
+            this.wasPaused = false;
+            window.game.isPaused = true;
+          } else {
+            // Se não deve pausar ou o jogo já estava pausado, marca como já estava pausado
+            this.wasPaused = window.game ? window.game.isPaused : true;
+          }
+          
+          this.isOpen = true;
+          this.render();
+          
+          const dialogModal = document.getElementById('dialogModal');
+          dialogModal.classList.add('active');
+        },
+        
+        /**
+         * Renderiza o diálogo atual
+         */
+        render() {
+          const dialog = this.currentDialog;
+          if (!dialog) return;
+          
+          const speakerName = document.getElementById('dialogSpeakerName');
+          const dialogMessage = document.getElementById('dialogMessage');
+          const dialogChoices = document.getElementById('dialogChoices');
+          const dialogNext = document.getElementById('dialogNext');
+          const dialogPortraitImage = document.getElementById('dialogPortraitImage');
+          
+          // Define o nome do personagem
+          speakerName.textContent = dialog.speaker || 'Personagem';
+          
+          // Define o retrato do personagem
+          if (dialog.portrait) {
+            // Aceita tanto string (caminho) quanto objeto Image do sistema de assets
+            let portraitSrc = '';
+            
+            if (typeof dialog.portrait === 'string') {
+              // Se for string, verifica se existe no objeto IMAGES (assets carregados)
+              const imageKey = Object.keys(IMAGES).find(key => 
+                ASSETS[key] === dialog.portrait || key === dialog.portrait
+              );
+              
+              if (imageKey && IMAGES[imageKey] && IMAGES[imageKey].complete) {
+                // Usa a imagem já carregada do sistema de assets
+                portraitSrc = IMAGES[imageKey].src;
+              } else {
+                // Usa o caminho direto se não estiver nos assets
+                portraitSrc = dialog.portrait;
+              }
+            } else if (dialog.portrait instanceof Image) {
+              // Se for um objeto Image, usa diretamente
+              portraitSrc = dialog.portrait.src;
+            }
+            
+            if (portraitSrc && portraitSrc.trim() !== '') {
+              dialogPortraitImage.src = portraitSrc;
+              dialogPortraitImage.style.display = 'block';
+              dialogPortraitImage.onload = () => {
+                dialogPortraitImage.style.opacity = '1';
+              };
+            } else {
+              dialogPortraitImage.style.display = 'none';
+            }
+          } else {
+            // Se não houver retrato, esconde o elemento
+            dialogPortraitImage.src = '';
+            dialogPortraitImage.style.display = 'none';
+          }
+          
+          // Cancela digitação anterior se houver
+          this.stopTypewriter();
+          
+          // Limpa a mensagem
+          dialogMessage.textContent = '';
+          
+          // Mensagem atual
+          const currentMessage = dialog.messages[this.currentIndex];
+          
+          // Verifica se deve avançar automaticamente (quando paused: false)
+          const shouldAutoAdvance = dialog.paused === false;
+          
+          // Verifica se há escolhas na última mensagem
+          const hasChoices = dialog.choices && dialog.choices.length > 0 && this.currentIndex === dialog.messages.length - 1;
+          
+          // Se não deve pausar e não há escolhas, esconde o botão "Próximo"
+          if (shouldAutoAdvance && !hasChoices) {
+            dialogNext.classList.add('hidden');
+          }
+          
+          // Inicia o efeito de digitação
+          this.startTypewriter(currentMessage || '', dialogMessage, () => {
+            // Callback quando termina de digitar
+            // Verifica se há escolhas
+            if (hasChoices) {
+              // Se há escolhas, sempre mostra (mesmo com paused: false, o usuário precisa escolher)
+              this.renderChoices(dialog.choices);
+              dialogNext.classList.add('hidden');
+            } else {
+              dialogChoices.classList.remove('active');
+              dialogChoices.innerHTML = '';
+              
+              // Se deve avançar automaticamente (paused: false) e não há escolhas
+              if (shouldAutoAdvance) {
+                // Aguarda um tempo antes de avançar (para dar tempo de ler)
+                const autoAdvanceDelay = 1500; // 1.5 segundos
+                setTimeout(() => {
+                  // Se ainda há mais mensagens, avança para a próxima
+                  if (this.currentIndex < dialog.messages.length - 1) {
+                    this.next();
+                  } else {
+                    // Se é a última mensagem, fecha o diálogo
+                    this.close();
+                  }
+                }, autoAdvanceDelay);
+              } else {
+                // Mostra ou esconde botão "Próximo" (comportamento normal)
+                if (this.currentIndex < dialog.messages.length - 1) {
+                  dialogNext.classList.remove('hidden');
+                  dialogNext.textContent = dialog.buttonNext || 'Próximo';
+                } else {
+                  dialogNext.classList.remove('hidden');
+                  dialogNext.textContent = dialog.buttonClose || 'Fechar';
+                }
+              }
+            }
+          });
+        },
+        
+        /**
+         * Inicia o efeito de digitação (typewriter)
+         * @param {string} text - Texto a ser digitado
+         * @param {HTMLElement} element - Elemento onde o texto será exibido
+         * @param {Function} onComplete - Callback quando termina de digitar
+         */
+        startTypewriter(text, element, onComplete) {
+          this.isTyping = true;
+          let index = 0;
+          const speed = 30; // Velocidade em milissegundos por caractere
+          
+          // Desabilita botão "Próximo" enquanto digita
+          const dialogNext = document.getElementById('dialogNext');
+          if (dialogNext) {
+            dialogNext.disabled = true;
+            dialogNext.style.opacity = '0.5';
+            dialogNext.style.cursor = 'not-allowed';
+          }
+          
+          this.typewriterInterval = setInterval(() => {
+            if (index < text.length) {
+              element.textContent += text[index];
+              index++;
+            } else {
+              this.stopTypewriter();
+              this.isTyping = false;
+              
+              // Reabilita botão "Próximo"
+              if (dialogNext) {
+                dialogNext.disabled = false;
+                dialogNext.style.opacity = '1';
+                dialogNext.style.cursor = 'pointer';
+              }
+              
+              // Chama callback quando termina
+              if (onComplete && typeof onComplete === 'function') {
+                onComplete();
+              }
+            }
+          }, speed);
+        },
+        
+        /**
+         * Para o efeito de digitação
+         */
+        stopTypewriter() {
+          if (this.typewriterInterval) {
+            clearInterval(this.typewriterInterval);
+            this.typewriterInterval = null;
+          }
+          this.isTyping = false;
+        },
+        
+        /**
+         * Renderiza as escolhas do diálogo
+         */
+        renderChoices(choices) {
+          const dialogChoices = document.getElementById('dialogChoices');
+          const dialogNext = document.getElementById('dialogNext');
+          
+          dialogChoices.innerHTML = '';
+          dialogChoices.classList.add('active');
+          
+          choices.forEach((choice, index) => {
+            const choiceButton = document.createElement('button');
+            choiceButton.className = 'dialogChoice';
+            choiceButton.textContent = choice.text || `Opção ${index + 1}`;
+            choiceButton.addEventListener('click', () => {
+              if (choice.action && typeof choice.action === 'function') {
+                choice.action();
+              }
+              this.close();
+            });
+            
+            dialogChoices.appendChild(choiceButton);
+          });
+        },
+        
+        /**
+         * Avança para a próxima mensagem
+         */
+        next() {
+          if (!this.currentDialog) return;
+          
+          // Se ainda está digitando, completa o texto imediatamente
+          if (this.isTyping) {
+            this.stopTypewriter();
+            const dialogMessage = document.getElementById('dialogMessage');
+            const currentMessage = this.currentDialog.messages[this.currentIndex];
+            dialogMessage.textContent = currentMessage || '';
+            this.isTyping = false;
+            
+            // Reabilita botão
+            const dialogNext = document.getElementById('dialogNext');
+            if (dialogNext) {
+              dialogNext.disabled = false;
+              dialogNext.style.opacity = '1';
+              dialogNext.style.cursor = 'pointer';
+            }
+            
+            // Renderiza escolhas ou botão se necessário
+            const dialog = this.currentDialog;
+            const dialogChoices = document.getElementById('dialogChoices');
+            const dialogNextBtn = document.getElementById('dialogNext');
+            
+            if (dialog.choices && dialog.choices.length > 0 && this.currentIndex === dialog.messages.length - 1) {
+              this.renderChoices(dialog.choices);
+              dialogNextBtn.classList.add('hidden');
+            } else {
+              dialogChoices.classList.remove('active');
+              dialogChoices.innerHTML = '';
+              
+              if (this.currentIndex < dialog.messages.length - 1) {
+                dialogNextBtn.classList.remove('hidden');
+                dialogNextBtn.textContent = dialog.buttonNext || 'Próximo';
+              } else {
+                dialogNextBtn.classList.remove('hidden');
+                dialogNextBtn.textContent = dialog.buttonClose || 'Fechar';
+              }
+            }
+            return;
+          }
+          
+          // Avança normalmente
+          if (this.currentIndex < this.currentDialog.messages.length - 1) {
+            this.currentIndex++;
+            this.render();
+          } else {
+            this.close();
+          }
+        },
+        
+        /**
+         * Verifica se há escolhas no diálogo atual
+         */
+        hasChoices() {
+          return this.currentDialog && 
+                 this.currentDialog.choices && 
+                 this.currentDialog.choices.length > 0 &&
+                 this.currentIndex === this.currentDialog.messages.length - 1;
+        },
+        
+        /**
+         * Fecha o diálogo
+         */
+        close() {
+          // Para a digitação se estiver ativa
+          this.stopTypewriter();
+          
+          const dialogModal = document.getElementById('dialogModal');
+          dialogModal.classList.remove('active');
+          
+          this.isOpen = false;
+          
+          // Retoma o jogo se não estava pausado antes
+          if (window.game && !this.wasPaused) {
+            window.game.isPaused = false;
+          }
+          
+          // Se for um tutorial, marca como executado antes de limpar
+          const currentDialog = this.currentDialog;
+          if (currentDialog && currentDialog.type === 'tutorial' && currentDialog.id !== undefined && currentDialog.id !== null) {
+            this.markTutorialAsExecuted(currentDialog.id);
+            console.log('DialogSystem: Tutorial', currentDialog.id, 'marcado como executado');
+          }
+          
+          // Limpa o diálogo atual
+          this.currentDialog = null;
+          this.currentIndex = 0;
+          
+          // Reabilita botão
+          const dialogNext = document.getElementById('dialogNext');
+          if (dialogNext) {
+            dialogNext.disabled = false;
+            dialogNext.style.opacity = '1';
+            dialogNext.style.cursor = 'pointer';
+          }
+          
+          // Chama callback de fechamento se existir
+          const callback = this.onCloseCallback;
+          this.onCloseCallback = null; // Limpa antes de chamar para evitar chamadas múltiplas
+          
+          if (callback && typeof callback === 'function') {
+            // Usa setTimeout para garantir que o DOM foi atualizado antes de chamar o callback
+            setTimeout(() => {
+              callback();
+            }, 50);
+          }
+        },
+        
+        /**
+         * Exemplo de uso:
+         * 
+         * Usando imagem do sistema de assets (RECOMENDADO - mais performático):
+         * DialogSystem.show({
+         *   speaker: "Comandante",
+         *   portrait: IMAGES.commander, // Usa imagem já carregada dos assets
+         *   messages: [
+         *     "Bem-vindo, piloto!",
+         *     "Você está pronto para a missão?",
+         *     "Boa sorte lá fora!"
+         *   ],
+         *   buttonNext: "Continuar", // Texto personalizado do botão "Próximo" (opcional)
+         *   buttonClose: "Entendi", // Texto personalizado do botão "Fechar" (opcional)
+         *   onClose: () => {
+         *     console.log("Diálogo fechado!");
+         *   }
+         * });
+         * 
+         * Ou usando caminho direto (também funciona):
+         * DialogSystem.show({
+         *   speaker: "Comandante",
+         *   portrait: "./images/commander.png", // Caminho direto
+         *   messages: ["Bem-vindo, piloto!"]
+         * });
+         * 
+         * Com escolhas:
+         * DialogSystem.show({
+         *   speaker: "Comandante",
+         *   portrait: IMAGES.commander,
+         *   messages: [
+         *     "Você aceita a missão?"
+         *   ],
+         *   buttonNext: "Avançar",
+         *   buttonClose: "Sair",
+         *   choices: [
+         *     {
+         *       text: "Sim, vou aceitar!",
+         *       action: () => {
+         *         console.log("Aceitou a missão!");
+         *       }
+         *     },
+         *     {
+         *       text: "Preciso pensar...",
+         *       action: () => {
+         *         console.log("Recusou por enquanto.");
+         *       }
+         *     }
+         *   ]
+         * });
+         */
+      };
+      
+      // ============================================
       // [20] DEV TOOLS (Debug Panel)
       // ============================================
       
@@ -4917,6 +5635,132 @@
         forceDeath() {
           game.player.die();
           console.log('💀 Forçando animação de morte do player...');
+        },
+        
+        testDialog() {
+          DialogSystem.show({
+            speaker: "Comandante",
+            portrait: "./images/player.png",
+            messages: [
+              "Bem-vindo, piloto!",
+              "Você está pronto para a missão?",
+              "Boa sorte lá fora!"
+            ],
+            onClose: () => {
+              console.log("✅ Diálogo de teste fechado!");
+            }
+          });
+        },
+        
+        testDialogWithChoices() {
+          DialogSystem.show({
+            speaker: "Comandante",
+            portrait: "./images/player.png",
+            messages: [
+              "Você aceita esta missão perigosa?"
+            ],
+            choices: [
+              {
+                text: "Sim, vou aceitar!",
+                action: () => {
+                  console.log("✅ Aceitou a missão!");
+                  game.coins += 50;
+                }
+              },
+              {
+                text: "Preciso pensar...",
+                action: () => {
+                  console.log("❌ Recusou por enquanto.");
+                  
+                }
+              },
+              {
+                text: "Quanto vou ganhar?",
+                action: () => {
+                  console.log("💰 Perguntou sobre o pagamento!");
+                  DialogSystem.show({
+                    speaker: "Comandante",
+                    portrait: "./images/player.png",
+                    messages: [
+                      "Você receberá 100 moedas se completar a missão!"
+                    ]
+                  });
+                }
+              }
+            ]
+          });
+        },
+        
+        testDialogConversation() {
+          // Inicia a conversa com o Comandante
+          // Usando IMAGES diretamente (já carregado) - mais performático!
+          DialogSystem.show({
+            speaker: "Comandante",
+            portrait: IMAGES.commander || ASSETS.commander, // Usa imagem carregada ou fallback
+            buttonNext: "Continuar",
+            buttonClose: "Entendi",
+            messages: [
+              "Assistente, qual é o status da missão?"
+            ],
+            onClose: () => {
+              // Continua com o Assistente
+              DialogSystem.show({
+                speaker: "Assistente",
+                portrait: IMAGES.assistant || ASSETS.assistant, // Usa imagem carregada ou fallback
+                buttonNext: "Prosseguir",
+                buttonClose: "Fechar",
+                messages: [
+                  "Comandante, a situação está crítica!",
+                  "Nossos sensores detectaram múltiplas formações inimigas se aproximando.",
+                  "A área de operação está completamente cercada."
+                ],
+                onClose: () => {
+                  // Volta para o Comandante
+                  DialogSystem.show({
+                    speaker: "Comandante",
+                    portrait: IMAGES.commander || ASSETS.commander,
+                    buttonNext: "Avançar",
+                    buttonClose: "Ok",
+                    messages: [
+                      "E quanto às nossas defesas?",
+                      "Temos algum sistema de apoio disponível?"
+                    ],
+                    onClose: () => {
+                      // Assistente responde
+                      DialogSystem.show({
+                        speaker: "Assistente",
+                        portrait: IMAGES.assistant || ASSETS.assistant,
+                        buttonNext: "Próximo",
+                        buttonClose: "Fechar",
+                        messages: [
+                          "Infelizmente, nosso sistema de defesa está operando em 30% da capacidade.",
+                          "Mas temos uma boa notícia: o piloto pode coletar power-ups no campo de batalha.",
+                          "Além disso, a loja de equipamentos está disponível para upgrades."
+                        ],
+                        onClose: () => {
+                          // Comandante finaliza
+                          DialogSystem.show({
+                            speaker: "Comandante",
+                            portrait: IMAGES.commander || ASSETS.commander,
+                            buttonNext: "Continuar",
+                            buttonClose: "Começar Missão",
+                            messages: [
+                              "Entendido. Piloto, você ouviu tudo.",
+                              "Esta será uma missão difícil, mas temos fé em você.",
+                              "Boa sorte lá fora!"
+                            ],
+                            onClose: () => {
+                              console.log("✅ Conversa de teste concluída!");
+                            }
+                          });
+                        }
+                      });
+                    }
+                  });
+                }
+              });
+            }
+          });
         },
         
         spawnEnemy(type) {
@@ -4986,5 +5830,6 @@
       loadImages(ASSETS, () => {
         game.init();
         ShopSystem.init();
+        DialogSystem.init();
         DevTools.init();
       });

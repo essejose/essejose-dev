@@ -63,6 +63,13 @@
         </div>
         
         <div class="devSection">
+          <h4>💬 Diálogo</h4>
+          <button class="devBtn" onclick="DevTools.testDialog()">💬 Testar Diálogo</button>
+          <button class="devBtn" onclick="DevTools.testDialogWithChoices()">❓ Diálogo com Escolhas</button>
+          <button class="devBtn" onclick="DevTools.testDialogConversation()">🗣️ Conversa entre Personagens</button>
+        </div>
+        
+        <div class="devSection">
           <h4>👾 Inimigos Básicos</h4>
           <button class="devBtn" onclick="DevTools.spawnEnemy('Enemy')">Inimigo Padrão</button>
           <button class="devBtn" onclick="DevTools.spawnEnemy('DroneEnemy')">Drone (Formação)</button>
@@ -138,6 +145,28 @@
           <div class="shopSection">
             <h3>🚁 UPGRADES PERMANENTES</h3>
             <div id="upgradesList"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Sistema de Diálogo -->
+    <div id="dialogModal">
+      <div id="dialogContent">
+        <div id="dialogPortrait">
+          <img id="dialogPortraitImage" src="" alt="Personagem">
+        </div>
+        <div id="dialogMain">
+          <div id="dialogHeader">
+            <span id="dialogSpeakerName">Personagem</span>
+            <button id="closeDialog">✕</button>
+          </div>
+          <div id="dialogText">
+            <p id="dialogMessage">Texto do diálogo aparecerá aqui...</p>
+          </div>
+          <div id="dialogChoices"></div>
+          <div id="dialogFooter">
+            <button id="dialogNext">Próximo</button>
           </div>
         </div>
       </div>
