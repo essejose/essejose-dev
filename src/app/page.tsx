@@ -81,7 +81,7 @@ export default function Home() {
   
   <AnimatedSpan delay={8000} className="text-muted-foreground">
     &gt;{" "}
-    <Link href="/games" className="transition-colors hover:text-green-500 inline-flex font-mono animate-blink-bright">
+    <Link id="games-link" href="/games" className="transition-colors hover:text-green-500 inline-flex font-mono animate-blink-bright">
     <span className="animate-blink">...</span> [Click to open games 🚀] <span className="animate-blink">...</span>
   </Link>
   </AnimatedSpan>
