@@ -23,6 +23,7 @@ import { SaveSystem } from '../systems/save.js';
 import { DialogSystem } from '../systems/dialog.js';
 import { WaveSystem } from '../systems/waves.js';
 import { ShopSystem } from '../systems/shop.js';
+import { HudSystem } from '../systems/hud.js';
 // Collision helpers: ./collisions.js (aabbOverlap, distSq)
 
 // ============================================
@@ -364,7 +365,7 @@ Object.assign(game, {
 
             // Adiciona kill ao combo e aplica multiplicador
             this.comboSystem.addKill();
-            const points = Math.floor(1 * this.comboSystem.multiplier);
+            const points = Math.floor(10 * this.comboSystem.multiplier);
             this.score += points;
             
             // Dropa moeda (30% de chance) - respeitando limite
@@ -377,8 +378,8 @@ Object.assign(game, {
               this.powerUps.push(new PowerUp(e.x, e.y));
             }
             
-            // Mostra pontos ganhos
-            if (points > 1) {
+            // Mostra pontos ganhos (com combo)
+            if (points > 10) {
               this.damageTexts.push(
                 new DamageText(e.x, e.y - 20, `+${points}`, "yellow")
               );
@@ -411,7 +412,7 @@ Object.assign(game, {
             
             // Adiciona kill ao combo e aplica multiplicador
             this.comboSystem.addKill();
-            const points = Math.floor(2 * this.comboSystem.multiplier); // Tanks valem 2 pontos
+            const points = Math.floor(20 * this.comboSystem.multiplier); // Tanks valem 20 pontos
             this.score += points;
             
             // Dropa moedas (tanks sempre dropam 2-5 moedas)
@@ -427,8 +428,8 @@ Object.assign(game, {
               this.powerUps.push(new PowerUp(t.x, t.y));
             }
             
-            // Mostra pontos ganhos
-            if (points > 2) {
+            // Mostra pontos ganhos (com combo)
+            if (points > 20) {
               this.damageTexts.push(
                 new DamageText(t.x, t.y - 20, `+${points}`, "yellow")
               );
@@ -611,102 +612,36 @@ Object.assign(game, {
     this.coinsDropped.forEach((c) => c.draw(ctx));
     this.damageTexts.forEach((dt) => dt.draw());
 
-    ctx.fillStyle = "black";
-    ctx.font = "12px Arial";
-    ctx.fillText("Score: " + this.score, 20, 30);
-    
-    // Indicador de Wave
-    ctx.fillStyle = "#FF4444";
-    ctx.font = "bold 16px Arial";
-    ctx.fillText("WAVE: " + WaveSystem.currentWave, 20, 50);
-    
-    // Indicador de Vidas
-    ctx.fillStyle = "#FF1744";
-    ctx.font = "bold 14px Arial";
-    ctx.fillText("❤️ x " + this.lives, 20, 70);
-    
-    ctx.fillStyle = "black";
-    ctx.font = "12px Arial";
-    ctx.fillText(
-      "Weapon: " +
-        this.player.primaryWeapon.name +
-        " (Lv" +
-        this.player.primaryWeapon.level +
-        ")",
-      20,
-      90
-    );
-
-    // Se quiser exibir também as auxiliares:
-    const auxNames = 
-      this.player.auxiliaryWeapons
-      ?.map((w) => `${w.name} (Lv${w.level || 1})`)
-      .join(", ");
-    if (auxNames) {
-      ctx.font = "12px Arial";
-      ctx.fillText("Aux: " + auxNames, 20, 110);
-    }
-
-    // Contador de moedas (canto superior direito)
-    const coinX = canvas.width / 2;
-    const coinY = 20;
-    
-    // Background do contador
-    ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
-    ctx.strokeStyle = "#FFD700";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.roundRect(coinX - 10, coinY - 5, 110, 30, 15);
-    ctx.fill();
-    ctx.stroke();
-    
-    // Ícone da moeda
-    ctx.fillStyle = "#FFD700";
-    ctx.beginPath();
-    ctx.arc(coinX + 10, coinY + 10, 10, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#000";
-    ctx.font = "bold 16px Arial";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("⭐", coinX + 10, coinY + 10);
-    
-    // Quantidade de moedas
-    ctx.fillStyle = "#FFD700";
-    ctx.font = "bold 20px Arial";
-    ctx.textAlign = "left";
-    ctx.textBaseline = "middle";
-    ctx.fillText(this.coins, coinX + 30, coinY + 10);
+    // HUD frames (canvas) — layout da referência
+    HudSystem.draw(ctx);
 
     // Informações de debug (só exibe se debug estiver ativo)
     if (this.debug) {
-    ctx.fillStyle = "black";
-    ctx.font = "14px Arial";
-    ctx.fillText(
-      "Enemies: " + this.enemies.length,
-      canvas.width - 150,
-      30
-    );
-    ctx.fillText(
-      "Projectiles: " + this.projectiles.length,
-      canvas.width - 150,
-      50
-    );
-    ctx.fillText("FPS: " + this.fps, canvas.width - 150, 70);
-    ctx.fillText(
-      "Damage: " + this.player.primaryWeapon.damage,
-      canvas.width - 150,
-      90
-    );
-    ctx.fillText(
-      "Cooldown: " + this.player.primaryWeapon.cooldown,
-      canvas.width - 150,
-      110
-    );
+      ctx.fillStyle = "black";
+      ctx.font = "14px Arial";
+      ctx.textAlign = "left";
+      ctx.fillText(
+        "Enemies: " + this.enemies.length,
+        canvas.width - 150,
+        30
+      );
+      ctx.fillText(
+        "Projectiles: " + this.projectiles.length,
+        canvas.width - 150,
+        50
+      );
+      ctx.fillText("FPS: " + this.fps, canvas.width - 150, 70);
+      ctx.fillText(
+        "Damage: " + this.player.primaryWeapon.damage,
+        canvas.width - 150,
+        90
+      );
+      ctx.fillText(
+        "Cooldown: " + this.player.primaryWeapon.cooldown,
+        canvas.width - 150,
+        110
+      );
     }
-
-    // Desenha o combo
-    this.comboSystem.draw(ctx);
 
     // Desenha o countdown (por cima de tudo)
     this.countdownSystem.draw(ctx);

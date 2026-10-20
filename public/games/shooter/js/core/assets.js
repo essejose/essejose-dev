@@ -19,6 +19,12 @@ export const ASSETS = {
   assistant: "./images/characters/pilot-2.png",
   commander: "./images/characters/commander.png",
   rival_commander: "./images/characters/rival_commander.png",
+  hudScore: "./images/hud/score.png",
+  hudWeapon: "./images/hud/weapon.png",
+  hudWave: "./images/hud/wave.png",
+  hudCoins: "./images/hud/coins.png",
+  hudShop: "./images/hud/shop.png",
+  hudCombo: "./images/hud/combo.png",
 };
 
 export const IMAGES = {};

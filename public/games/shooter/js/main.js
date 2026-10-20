@@ -3,6 +3,7 @@ import { ASSETS, loadImages } from "./core/assets.js";
 import { initInput } from "./core/input.js";
 import { game } from "./game/state.js";
 import { ShopSystem, DialogSystem, DevTools } from "./legacy/gameplay.js";
+import { HudSystem } from "./systems/hud.js";
 
 initCanvas();
 initInput();
@@ -18,4 +19,5 @@ loadImages(ASSETS, () => {
   ShopSystem.init();
   DialogSystem.init();
   DevTools.init();
+  HudSystem.init();
 });
