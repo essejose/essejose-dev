@@ -1,36 +1,9 @@
-  /*
-      ╔═══════════════════════════════════════════════════════════════════╗
-      ║                    HELICOPTER SHOOTER GAME                         ║
-      ║                     Estrutura do Código                            ║
-      ╚═══════════════════════════════════════════════════════════════════╝
-      
-      📑 ÍNDICE DE SEÇÕES (use Ctrl+F para navegar):
-      
-      [01] INICIALIZAÇÃO E CANVAS
-      [02] ASSETS E RECURSOS (sprites, sons, parallax)
-      [03] UTILITÁRIOS (colisão, física, efeitos)
-      [04] PARTÍCULAS (FlameParticle, ExplosionParticle)
-      [05] SISTEMA DE TEXTO (DamageText)
-      [06] PROJÉTEIS (Projectile, EnemyProjectile, etc)
-      [07] POWER-UPS E MOEDAS
-      [08] ARMAS (WeaponTypes, AuxiliaryWeaponTypes)
-      [09] JOGADOR (Player class)
-      [10] COMPONENTES REUTILIZÁVEIS (WobbleMovement, FlameEmitter, WeaponComponent)
-      [11] INIMIGOS COMPOSTOS (EnemyComposed, createEnemy factory)
-      [12] INIMIGOS LEGADOS (Enemy, MiniBoss, DiveEnemy, Tank)
-      [13] INIMIGOS DEPRECADOS (Comentados: Bomber, Sniper, Shielded, Drone)
-      [14] FORMAÇÕES (spawnArrowFormation, spawnDroneFormation)
-      [15] SISTEMA DE WAVES
-      [16] SISTEMA DE COMBO
-      [17] COUNTDOWN SYSTEM
-      [18] SISTEMA DE SAVE/LOAD
-      [19] SISTEMA DE LOJA (Shop)
-      [20] DEV TOOLS (Debug Panel)
-      [21] GAME LOOP (update, draw, input)
-      [22] EVENT LISTENERS E INICIALIZAÇÃO
-      
-      ══════════════════════════════════════════════════════════════════
-      */
+      /*
+       * Helicopter Shooter — fonte de desenvolvimento.
+       * Módulos: ver js/main.js e pastas core/, entities/, systems/, game/.
+       * Este arquivo é mantido como referência até a migração completar;
+       * o entry point de runtime é js/main.js (ES modules).
+       */
 
       // ============================================
       // [01] INICIALIZAÇÃO E CANVAS
@@ -123,11 +96,8 @@
         // Ativa/desativa modo debug com tecla K
         if (e.code === "KeyK") {
           game.debug = !game.debug;
-          console.log("Debug mode:", game.debug ? "ON" : "OFF");
         }
       });
-
-      document.addEventListener("keydown", (e) => (keys[e.code] = true));
       document.addEventListener("keyup", (e) => (keys[e.code] = false));
 
       function loadImages(sources, callback) {
@@ -1105,7 +1075,6 @@
           if (same) {
             player.primaryWeapon.levelUp();
           } else {
-            console.log(this.weaponType);
             const isAuxiliary = this.weaponType.isAuxiliary === true;
 
             if (isAuxiliary) {
@@ -2398,86 +2367,9 @@
       // EnemyComposed já foi definido acima nos componentes
 
       // ============================================
-      // [12] INIMIGOS LEGADOS (Herança)
+      // [12] INIMIGOS (MiniBoss, Tank, DiveEnemy) + factory
+      // Enemy legado removido — usar createEnemy / EnemyComposed
       // ============================================
-      
-      // ============================================
-      // CLASSE ENEMY - Base Legada (Uso Limitado)
-      // 
-      // USO ATUAL: Apenas para MiniBoss (herança)
-      // NOVO PADRÃO: createEnemy() com EnemyComposed (composição)
-      //
-      // Esta classe está mantida APENAS porque MiniBoss herda dela.
-      // Todos os outros inimigos agora usam o padrão de composição.
-      // ============================================
-      class Enemy {
-        constructor(x, y) {
-          this.x = x;
-          this.y = y;
-          this.width = 50;
-          this.height = 50;
-          this.speed = 2;
-          this.cooldown = Math.random() * 180 + 60;
-          this.damage = 1;
-          this.flameParticles = []; // Array de partículas de chama
-          this.flameSpawnCounter = 0; // Contador para spawn de partículas
-          // Balanço vertical
-          this.wobbleOffset = Math.random() * Math.PI * 2; // Offset aleatório para variação
-          this.wobbleSpeed = 0.06; // Velocidade do balanço
-          this.wobbleAmplitude = 15; // Amplitude do balanço (pixels)
-          this.baseY = y; // Posição Y base
-          this.wobbleCounter = 0; // Contador para animação
-        }
-
-        draw() {
-          // Desenha partículas de chama primeiro (atrás do inimigo)
-          this.flameParticles.forEach(p => p.draw());
-          
-          // Desenha o inimigo
-          if (IMAGES.inimigo1 && IMAGES.inimigo1.complete) {
-            ctx.drawImage(IMAGES.inimigo1, this.x, this.y, this.width, this.height);
-          } else {
-            // Fallback caso a imagem não carregue
-          ctx.fillStyle = "#594700";
-          ctx.fillRect(this.x, this.y, this.width, this.height);
-          }
-        }
-
-        update() {
-          this.x -= this.speed;
-          
-          // Balanço vertical suave
-          this.wobbleCounter += this.wobbleSpeed;
-          this.y = this.baseY + Math.sin(this.wobbleCounter + this.wobbleOffset) * this.wobbleAmplitude;
-          
-          this.cooldown--;
-          if (this.cooldown <= 0) {
-            game.enemyProjectiles.push(
-              new EnemyProjectile(this.x, this.y + this.height / 2, this.damage)
-            );
-            this.cooldown = Math.random() * 180 + 60;
-          }
-          
-          // Sistema de partículas de chama da turbina
-          this.flameSpawnCounter++;
-          if (this.flameSpawnCounter >= 3) { // Cria partículas a cada 3 frames
-            this.flameSpawnCounter = 0;
-            // Posição da turbina (traseira do inimigo, centro vertical)
-            const turbineX = this.x + this.width;  // Traseira da nave
-            const turbineY = this.y + this.height / 2; // Centro vertical
-            
-            // Cria 2-3 partículas por vez para um efeito mais denso
-            const particleCount = Math.floor(Math.random() * 2) + 2;
-            for (let i = 0; i < particleCount; i++) {
-              this.flameParticles.push(new FlameParticle(turbineX, turbineY + (Math.random() - 0.5) * 10));
-            }
-          }
-          
-          // Atualiza e remove partículas mortas
-          this.flameParticles.forEach(p => p.update());
-          this.flameParticles = this.flameParticles.filter(p => !p.dead);
-        }
-      }
       
       // ============================================
       // FACTORY PARA CRIAR ENEMIES (Facilita migração)
@@ -2486,7 +2378,7 @@
        * Cria um inimigo com configuração customizável
        * @param {number} x - Posição X
        * @param {number} y - Posição Y
-       * @param {strindwg} type - Tipo do inimigo ('basic', 'drone', 'bomber', 'sniper', 'shielded')
+       * @param {string} type - Tipo do inimigo ('basic', 'drone', 'bomber', 'sniper', 'shielded')
        * @param {Object} overrides - Configurações opcionais para sobrescrever valores padrão (ex: { health: 5, shield: 15 })
        * @returns {EnemyComposed} - Instância do inimigo criado
        */
@@ -2740,19 +2632,22 @@
       }
 
       // ============================================
-      // CLASSE MINIBOSS - Mantida como classe dedicada
-      // Lógica complexa de movimento, evasão e ataque justifica classe própria
-      // Herda de Enemy pois ainda usa funcionalidades base
+      // CLASSE MINIBOSS — standalone (não herda mais de Enemy)
       // ============================================
-      class MiniBoss extends Enemy {
+      class MiniBoss {
         constructor(x, y) {
-          super(x, y);
+          this.x = x;
+          this.y = y;
           this.width = 120;
           this.height = 80;
           this.maxHealth = 50;
           this.health = 50;
           this.speed = 1;
           this.cooldown = 90;
+          this.damage = 1;
+          this.dead = false;
+          this.dodgeCooldown = 0;
+          this.evadeDirection = 0;
         }
 
         update() {
@@ -3137,114 +3032,9 @@
       }
 
       // ============================================
-      // [13] INIMIGOS DEPRECADOS (Comentados - Não usar)
-      // ============================================
-      
-      // ============================================
-      // CLASSE BOMBERENEMY ANTIGA (Deprecated - NÃO É MAIS USADA)
-      // MIGRADO: usar createEnemy(x, y, 'bomber')
-      // ============================================
-      /*
-      class BomberEnemy extends Enemy {
-        constructor(x, y) {
-          super(x, y);
-          this.width = 40;
-          this.height = 40;
-          this.damage = 1;
-        }
-
-        update() {
-          this.x -= this.speed;
-          this.cooldown--;
-          if (this.cooldown <= 0) {
-            for (let i = -1; i <= 1; i++) {
-              game.enemyProjectiles.push(
-                new EnemyProjectile(this.x, this.y + i * 10, this.damage)
-              );
-            }
-            this.cooldown = Math.random() * 150 + 80;
-          }
-        }
-
-        draw() {
-          ctx.fillStyle = "#ff5555";
-          ctx.fillRect(this.x, this.y, this.width, this.height);
-        }
-      }
-      */
-
-      // ============================================
-      // CLASSE SNIPERENEMY ANTIGA (Deprecated - NÃO É MAIS USADA)
-      // MIGRADO: usar createEnemy(x, y, 'sniper')
-      // ============================================
-      /*
-      class SniperEnemy extends Enemy {
-        constructor(x, y) {
-          super(x, y);
-          this.cooldown = 240;
-          this.width = 20;
-          this.height = 60;
-          this.damage = 2;
-        }
-
-        update() {
-          this.x -= this.speed * 0.5;
-          this.cooldown--;
-          if (this.cooldown <= 0) {
-            const target = game.player;
-            game.enemyProjectiles.push(
-              new EnemyProjectileAngular(
-                this.x,
-                this.y + this.height / 2,
-                target.x + target.width / 2,
-                target.y + target.height / 2,
-                this.damage
-              )
-            );
-            this.cooldown = 240;
-          }
-        }
-
-        draw() {
-          ctx.fillStyle = "#3333cc";
-          ctx.fillRect(this.x, this.y, this.width, this.height);
-        }
-      }
-      */
-
-      // ============================================
-      // CLASSE SHIELDEDENEMY ANTIGA (Deprecated - NÃO É MAIS USADA)
-      // MIGRADO: usar createEnemy(x, y, 'shielded')
-      // ============================================
-      /*
-      class ShieldedEnemy extends Enemy {
-        constructor(x, y) {
-          super(x, y);
-          this.shielded = true;
-          this.width = 30;
-          this.height = 50;
-        }
-
-        draw() {
-          ctx.fillStyle = this.shielded ? "#88f" : "#f88";
-          ctx.fillRect(this.x, this.y, this.width, this.height);
-        }
-
-        hit() {
-          if (this.shielded) {
-            this.shielded = false;
-            return false;
-          } else {
-            return true;
-          }
-        }
-      }
-      */
-
-      // ============================================
       // CLASSE DIVEENEMY - Mantida como está (lógica complexa de fases)
       // ============================================
-      class DiveEnemy {
+      let DiveEnemy = class DiveEnemy {
         constructor(x) {
           const player = game.player;
           this.x = x;
@@ -3299,80 +3089,6 @@
           }
         }
       }
-
-      // ============================================
-      // CLASSE DRONEENEMY ANTIGA (Deprecated - NÃO É MAIS USADA)
-      // MIGRADO: usar createEnemy(x, y, 'drone')
-      // Mantida apenas como referência - PODE SER REMOVIDA
-      // ============================================
-      /*
-      class DroneEnemy extends Enemy {
-        constructor(x, y) {
-          super(x, y);
-          this.width = 45;
-          this.height = 45;
-          this.speed = 2.5;
-          this.cooldown = 60 + Math.random() * 60;
-          this.damage = 1;
-          this.flameParticles = []; // Array de partículas de chama
-          this.flameSpawnCounter = 0; // Contador para spawn de partículas
-          // Balanço vertical (menor que o inimigo básico)
-          this.wobbleOffset = Math.random() * Math.PI * 2;
-          this.wobbleSpeed = 0.08; // Um pouco mais rápido
-          this.wobbleAmplitude = 10; // Menor amplitude
-          this.baseY = y;
-          this.wobbleCounter = 0;
-        }
-
-        draw() {
-          // Desenha partículas de chama primeiro (atrás do inimigo)
-          this.flameParticles.forEach(p => p.draw());
-          
-          // Desenha o inimigo
-          if (IMAGES.inimigo2 && IMAGES.inimigo2.complete) {
-            ctx.drawImage(IMAGES.inimigo2, this.x, this.y, this.width, this.height);
-          } else {
-            // Fallback caso a imagem não carregue
-          ctx.fillStyle = "#00ccff";
-          ctx.fillRect(this.x, this.y, this.width, this.height);
-          }
-        }
-
-        update() {
-          this.x -= this.speed;
-          
-          // Balanço vertical suave
-          this.wobbleCounter += this.wobbleSpeed;
-          this.y = this.baseY + Math.sin(this.wobbleCounter + this.wobbleOffset) * this.wobbleAmplitude;
-          
-          this.cooldown--;
-          if (this.cooldown <= 0) {
-            game.enemyProjectiles.push(
-              new EnemyProjectile(this.x, this.y + this.height / 2)
-            );
-            this.cooldown = 90 + Math.random() * 90;
-          }
-          
-          // Sistema de partículas de chama da turbina
-          this.flameSpawnCounter++;
-          if (this.flameSpawnCounter >= 4) { // Cria partículas um pouco mais espaçadas
-            this.flameSpawnCounter = 0;
-            const turbineX = this.x + this.width; // Traseira da nave
-            const turbineY = this.y + this.height / 2; // Centro vertical
-            
-            // Cria 1-2 partículas por vez (menos que o inimigo básico)
-            const particleCount = Math.floor(Math.random() * 2) + 1;
-            for (let i = 0; i < particleCount; i++) {
-              this.flameParticles.push(new FlameParticle(turbineX, turbineY + (Math.random() - 0.5) * 8));
-            }
-          }
-          
-          // Atualiza e remove partículas mortas
-          this.flameParticles.forEach(p => p.update());
-          this.flameParticles = this.flameParticles.filter(p => !p.dead);
-        }
-      }
-      */
 
       function dropOnEnemyDeath(enemy) {
         const dropChance = Math.random();
@@ -3454,7 +3170,7 @@
           }
 
           // Suporta tanto classes antigas quanto nova arquitetura
-          if (enemyClass === Enemy || enemyClass === 'Enemy' || enemyClass === 'basic') {
+          if (enemyClass === 'Enemy' || enemyClass === 'basic') {
             enemies.push(createEnemy(x, y, 'basic'));
           } else if (enemyClass === 'DroneEnemy' || enemyClass === 'drone') {
             enemies.push(createEnemy(x, y, 'drone'));
@@ -3539,26 +3255,7 @@
       // Adiciona saúde aos inimigos legados (NÃO usar para novos inimigos)
       // Inimigos criados via createEnemy() já possuem saúde integrada
       // ============================================
-      Enemy = addHealthToEnemy(Enemy, 1);
-      // BomberEnemy = addHealthToEnemy(BomberEnemy, 3); // Comentado - agora usa createEnemy('bomber')
-      // SniperEnemy = addHealthToEnemy(SniperEnemy, 4); // Comentado - agora usa createEnemy('sniper')
       DiveEnemy = addHealthToEnemy(DiveEnemy, 2);
-      // ShieldedEnemy - Comentado, agora usa createEnemy('shielded')
-      /*
-      ShieldedEnemy = class extends addHealthToEnemy(ShieldedEnemy, 10) {
-        takeDamage(amount = 1) {
-          if (this.shielded) {
-            this.shielded = false;
-            game.damageTexts.push(
-              new DamageText(this.x, this.y, "Shield Down", "cyan")
-            );
-            return false;
-          } else {
-            return super.takeDamage(amount);
-          }
-        }
-      };
-      */
       Tank = addHealthToEnemy(Tank, 5);
       // DroneEnemy = addHealthToEnemy(DroneEnemy, 1); // Comentado - agora usa createEnemy('drone')
 
@@ -3830,44 +3527,31 @@
                if (Array.isArray(config.dialog) && config.dialog.length > 0) {
                  // Múltiplos diálogos sequenciais
                  let dialogIndex = 0;
-                 console.log(dialogIndex);
-                
                  const showNextDialog = () => {
                    if (dialogIndex < config.dialog.length) {
                      const dialog = config.dialog[dialogIndex];
-                     const currentIndex = dialogIndex; // Captura o índice atual
                      
                      DialogSystem.show({
                        speaker: dialog.speaker || "Comandante",
                        portrait: dialog.portrait || IMAGES.commander || ASSETS.commander,
                        messages: dialog.messages || [],
-                       type: dialog.type, // Passa a propriedade type (ex: "tutorial")
-                       id: dialog.id, // Passa o ID do diálogo/tutorial
-                       paused: dialog.paused !== undefined ? dialog.paused : true, // Respeita a propriedade paused do diálogo
+                       type: dialog.type,
+                       id: dialog.id,
+                       paused: dialog.paused !== undefined ? dialog.paused : true,
                        buttonNext: dialog.buttonNext,
                        buttonClose: dialog.buttonClose,
                        onClose: () => {
-                         // Incrementa o índice para o próximo diálogo
                          dialogIndex++;
-                         console.log('Diálogo', currentIndex, 'fechado. Próximo índice:', dialogIndex);
-                         
-                         // Pequeno delay para garantir que o diálogo anterior foi completamente fechado
                          setTimeout(() => {
                            if (dialogIndex < config.dialog.length) {
-                             // Ainda há mais diálogos, mostra o próximo
-                             console.log('Mostrando próximo diálogo:', dialogIndex);
                              showNextDialog();
                            } else {
-                             // Todos os diálogos foram mostrados, completa a wave
-                             console.log('Todos os diálogos concluídos. Completando wave.');
                              WaveSystem.onWaveComplete();
                            }
                          }, 100);
                        }
                      });
                    } else {
-                     // Se não houver mais diálogos, completa a wave
-                     console.log('Sem mais diálogos. Completando wave.');
                      WaveSystem.onWaveComplete();
                    }
                  };
