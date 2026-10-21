@@ -1,7 +1,7 @@
 import { canvas, ctx } from '../core/canvas.js';
 import { ASSETS, IMAGES } from '../core/assets.js';
 import { keys, controlMode, CONTROLSMODES } from '../core/input.js';
-import { ParallaxLayer } from '../core/parallax.js';
+import { ParallaxLayer, drawAtmosphereLighting } from '../core/parallax.js';
 import { game } from '../game/state.js';
 
 import {
@@ -152,14 +152,16 @@ Object.assign(game, {
     // NÃO reseta moedas e vidas (são persistentes)
 
     // Inicializa camadas de parallax (da mais distante para a mais próxima)
-    // Velocidades: mais longe = mais lento, mais perto = mais rápido
+    // y negativo sobe a arte p/ cobrir faixa clara no topo da imagem
+    // Alpha: profundidade visual (distante mais suave → perto opaco)
+    const parallaxY = -36;
     this.parallaxLayers = [
-      new ParallaxLayer(IMAGES.parallax1, 0.2, 0),  // Céu/fundo mais distante
-      new ParallaxLayer(IMAGES.parallax2, 0.4, 0),  // Montanhas distantes
-      new ParallaxLayer(IMAGES.parallax3, 0.6, 0),  // Montanhas médias
-      new ParallaxLayer(IMAGES.parallax4, 0.8, 0),  // Colinas
-      new ParallaxLayer(IMAGES.parallax5, 1.0, 0),  // Vegetação distante
-      new ParallaxLayer(IMAGES.parallax6, 1.5, 0),  // Vegetação próxima
+      new ParallaxLayer(IMAGES.parallax1, 0.2, parallaxY, 0.88),
+      new ParallaxLayer(IMAGES.parallax2, 0.4, parallaxY, 0.92),
+      new ParallaxLayer(IMAGES.parallax3, 0.6, parallaxY, 0.95),
+      new ParallaxLayer(IMAGES.parallax4, 0.8, parallaxY, 0.97),
+      new ParallaxLayer(IMAGES.parallax5, 1.0, parallaxY, 1),
+      new ParallaxLayer(IMAGES.parallax6, 1.5, parallaxY, 1),
     ];
     
     // Ajusta velocidade do parallax baseado no modo de controle inicial
@@ -749,6 +751,10 @@ Object.assign(game, {
   },
 
   drawBackground() {
+    // Base de céu (evita faixa clara do CSS do canvas sob layers com alpha)
+    ctx.fillStyle = "#7eb8e0";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
     // Desenha camadas de parallax (da mais distante para a mais próxima)
     this.parallaxLayers.forEach(layer => layer.draw(ctx));
 
@@ -769,6 +775,9 @@ Object.assign(game, {
       ctx.fillStyle = "#3a3a3a";
       ctx.fillRect(0, groundY, canvas.width, groundH);
     }
+
+    // Sol + vinheta (só no fundo; sprites/HUD vêm depois)
+    drawAtmosphereLighting(ctx, canvas);
   },
 
   loop(timestamp) {
