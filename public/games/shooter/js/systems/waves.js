@@ -140,21 +140,21 @@ const WaveConfig = {
         ],
       }],
     },
-    6: { basic: 3, drone: 2, bomber: 2, sniper: 1, shielded: 1, tanks: 2, boss: false },
-    7: { drone: 4, bomber: 3, sniper: 2, shielded: 1, tanks: 2, boss: false },
-    8: { basic: 3, drone: 3, bomber: 3, sniper: 2, shielded: 1, tanks: 3, boss: false },
-    9: { basic: 2, drone: 4, bomber: 3, sniper: 3, shielded: 1, tanks: 3, boss: false },
-    10: { drone: 4, bomber: 4, sniper: 4, shielded: 3, tanks: 3, boss: true },
-    11: { basic: 3, drone: 4, bomber: 3, sniper: 2, shielded: 2, tanks: 4, boss: false },
-    12: { drone: 4, bomber: 4, sniper: 4, shielded: 3, tanks: 4, boss: false },
-    13: { basic: 2, drone: 5, bomber: 4, sniper: 3, shielded: 2, tanks: 4, boss: false },
-    14: { drone: 5, bomber: 4, sniper: 5, shielded: 3, tanks: 5, boss: false },
-    15: { basic: 3, drone: 5, bomber: 5, sniper: 4, shielded: 3, tanks: 5, boss: true },
-    16: { drone: 5, bomber: 5, sniper: 5, shielded: 3, tanks: 5, boss: false },
-    17: { basic: 2, drone: 6, bomber: 5, sniper: 4, shielded: 2, tanks: 6, boss: false },
-    18: { drone: 6, bomber: 6, sniper: 5, shielded: 3, tanks: 6, boss: false },
-    19: { basic: 3, drone: 6, bomber: 6, sniper: 6, shielded: 1, tanks: 7, boss: false },
-    20: { drone: 6, bomber: 6, sniper: 6, shielded: 7, tanks: 8, boss: true },
+    6: { basic: 3, drone: 2, bomber: 2, sniper: 1, shielded: 1, dive: 1, tanks: 2, boss: false },
+    7: { drone: 4, bomber: 3, sniper: 2, shielded: 1, dive: 1, tanks: 2, boss: false },
+    8: { basic: 3, drone: 3, bomber: 3, sniper: 2, shielded: 1, dive: 1, tanks: 3, boss: false },
+    9: { basic: 2, drone: 4, bomber: 3, sniper: 3, shielded: 1, dive: 1, tanks: 3, boss: false },
+    10: { drone: 4, bomber: 4, sniper: 4, shielded: 3, dive: 2, tanks: 3, boss: true },
+    11: { basic: 3, drone: 4, bomber: 3, sniper: 2, shielded: 2, dive: 1, tanks: 4, boss: false },
+    12: { drone: 4, bomber: 4, sniper: 4, shielded: 3, dive: 2, tanks: 4, boss: false },
+    13: { basic: 2, drone: 5, bomber: 4, sniper: 3, shielded: 2, dive: 2, tanks: 4, boss: false },
+    14: { drone: 5, bomber: 4, sniper: 5, shielded: 3, dive: 2, tanks: 5, boss: false },
+    15: { basic: 3, drone: 5, bomber: 5, sniper: 4, shielded: 3, dive: 2, tanks: 5, boss: true },
+    16: { drone: 5, bomber: 5, sniper: 5, shielded: 3, dive: 2, tanks: 5, boss: false },
+    17: { basic: 2, drone: 6, bomber: 5, sniper: 4, shielded: 2, dive: 2, tanks: 6, boss: false },
+    18: { drone: 6, bomber: 6, sniper: 5, shielded: 3, dive: 3, tanks: 6, boss: false },
+    19: { basic: 3, drone: 6, bomber: 6, sniper: 6, shielded: 1, dive: 3, tanks: 7, boss: false },
+    20: { drone: 6, bomber: 6, sniper: 6, shielded: 7, dive: 3, tanks: 8, boss: true },
   },
   
   // Configuração padrão para waves 21+ (escala infinitamente)
@@ -173,9 +173,13 @@ const WaveConfig = {
     const drone = Math.floor(totalEnemies * 0.25);
     const bomber = Math.floor(totalEnemies * 0.25);
     const sniper = Math.floor(totalEnemies * 0.2);
-    const shielded = totalEnemies - basic - drone - bomber - sniper; // Resto vai para shielded
-    
-    return { basic, drone, bomber, sniper, shielded, tanks, boss };
+    const dive = Math.min(3, 1 + Math.floor((wave - 20) / 5));
+    const shielded = Math.max(
+      0,
+      totalEnemies - basic - drone - bomber - sniper - dive
+    );
+
+    return { basic, drone, bomber, sniper, shielded, dive, tanks, boss };
   },
   
   // Recompensa de moedas por wave
@@ -279,53 +283,57 @@ const WaveSystem = {
     for (let i = 0; i < (config.shielded || 0); i++) {
       enemyTypes.push('shielded');
     }
-    
+    for (let i = 0; i < (config.dive || 0); i++) {
+      enemyTypes.push('dive');
+    }
+
     // Embaralha a lista para variar a ordem de spawn
     for (let i = enemyTypes.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [enemyTypes[i], enemyTypes[j]] = [enemyTypes[j], enemyTypes[i]];
     }
-    
+
     // Spawna inimigos baseado nos tipos
     let spawnedEnemies = 0;
     let formationDelay = 0;
-    
+
     while (spawnedEnemies < enemyTypes.length) {
       const remaining = enemyTypes.length - spawnedEnemies;
       const enemyType = enemyTypes[spawnedEnemies];
       const formationType = Math.random();
-      
+
       // Closure para capturar delay atual e tipo
       ((delay, type) => {
         setTimeout(() => {
           // Wave pode ter mudado enquanto o timeout esperava
           if (!WaveSystem.waveActive || WaveSystem.currentWave !== wave) return;
 
-          if (formationType < 0.3 && remaining >= 5 && type === 'drone') {
-            // Formação de drones (só para drones)
-            const formation = spawnDroneFormation(Math.min(5, remaining));
+          if (type === 'dive') {
+            const x = canvas.width + 50 + Math.random() * 80;
+            game.enemies.push(new DiveEnemy(x));
+            WaveSystem.hasSpawned = true;
+          } else if (formationType < 0.3 && remaining >= 5 && type === 'drone') {
+            const formation = spawnDroneFormation(Math.min(5, remaining), wave);
             if (formation) {
               const enemies = Array.isArray(formation) ? formation : [formation];
               game.enemies.push(...enemies);
               WaveSystem.hasSpawned = true;
             }
           } else {
-            // Spawn individual baseado no tipo especificado
             const x = canvas.width + 50 + Math.random() * 100;
             const y = randomEnemyY();
-            game.enemies.push(createEnemy(x, y, type));
+            game.enemies.push(createEnemy(x, y, type, { waveNumber: wave }));
             WaveSystem.hasSpawned = true;
           }
         }, delay);
       })(formationDelay, enemyType);
-      
-      // Incrementa contador
+
       if (formationType < 0.3 && remaining >= 5 && enemyType === 'drone') {
         spawnedEnemies += Math.min(5, remaining);
       } else {
         spawnedEnemies++;
       }
-      
+
       formationDelay += 1500; // 1.5 segundos entre spawns
     }
     

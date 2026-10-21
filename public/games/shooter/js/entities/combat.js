@@ -1729,20 +1729,45 @@ class EnemyProjectileAngular {
 // [10] COMPONENTES REUTILIZÁVEIS (Composition Pattern)
 // ============================================
 
-// Componente de Movimento com Wobble
+// Componente de Movimento com Wobble + tracking leve do player
 class WobbleMovement {
   constructor(config = {}) {
-    this.speed = config.speed || 2;
+    this.baseSpeed = config.speed || 2;
+    this.speed = this.baseSpeed;
     this.wobbleSpeed = config.wobbleSpeed || 0.06;
     this.wobbleAmplitude = config.wobbleAmplitude || 15;
+    this.trackPlayer = config.trackPlayer || 0;
+    this.chargeBoost = config.chargeBoost || 0; // shielded: acelera perto do player
     this.wobbleOffset = Math.random() * Math.PI * 2;
     this.wobbleCounter = 0;
+    this.speedMultiplier = 1; // sniper telegraph / externos
   }
-  
+
   update(entity) {
-    entity.x -= this.speed;
+    const player = game.player;
+    let speed = this.baseSpeed * this.speedMultiplier;
+
+    // Charge curto quando blindado chega perto
+    if (this.chargeBoost > 0 && player) {
+      const dx = entity.x - (player.x + player.width);
+      if (dx > 0 && dx < 280) {
+        speed *= 1 + this.chargeBoost * (1 - dx / 280);
+      }
+    }
+
+    this.speed = speed;
+    entity.x -= speed;
+
+    // Tracking suave: baseY tende ao player
+    if (this.trackPlayer > 0 && player && !entity.isDying) {
+      const targetY = player.y + player.height / 2 - entity.height / 2;
+      entity.baseY += (targetY - entity.baseY) * this.trackPlayer * 0.04;
+    }
+
     this.wobbleCounter += this.wobbleSpeed;
-    entity.y = entity.baseY + Math.sin(this.wobbleCounter + this.wobbleOffset) * this.wobbleAmplitude;
+    entity.y =
+      entity.baseY +
+      Math.sin(this.wobbleCounter + this.wobbleOffset) * this.wobbleAmplitude;
   }
 }
 
@@ -1786,22 +1811,51 @@ class FlameEmitter {
 class WeaponComponent {
   constructor(config = {}) {
     this.damage = config.damage || 1;
-    this.cooldown = Math.random() * 120 + 60; // Inicializa com valor aleatório
+    this.cooldown = Math.random() * 120 + 60;
     this.cooldownMin = config.cooldownMin || 60;
     this.cooldownMax = config.cooldownMax || 180;
+    this.aimBias = config.aimBias || 0; // 0 = reto; >0 puxa Y levemente ao player
+    this.requireAlign = config.requireAlign !== false; // gate faixa do player
+    this.alignRange = config.alignRange || 120;
+    this.alwaysAlign = config.alwaysAlign || false; // sniper: só precisa estar on-screen
   }
-  
+
+  /** Gate: on-screen + (faixa do player OU sniper). */
+  canFire(entity) {
+    if (entity.x > canvas.width - 40) return false;
+    if (entity.x + entity.width < 0) return false;
+    if (this.alwaysAlign) return true;
+    if (!this.requireAlign) return true;
+    const player = game.player;
+    if (!player) return false;
+    const ey = entity.y + entity.height / 2;
+    const py = player.y + player.height / 2;
+    return Math.abs(ey - py) < this.alignRange;
+  }
+
   update(entity) {
     this.cooldown--;
     if (this.cooldown <= 0) {
-      this.fire(entity);
-      this.cooldown = Math.random() * (this.cooldownMax - this.cooldownMin) + this.cooldownMin;
+      if (this.canFire(entity)) {
+        this.fire(entity);
+        this.cooldown =
+          Math.random() * (this.cooldownMax - this.cooldownMin) + this.cooldownMin;
+      } else {
+        // Tenta de novo em breve se ainda off-screen / desalinhado
+        this.cooldown = 20 + Math.random() * 25;
+      }
     }
   }
-  
+
   fire(entity) {
+    const player = game.player;
+    let shotY = entity.y + entity.height / 2;
+    if (this.aimBias > 0 && player) {
+      const py = player.y + player.height / 2;
+      shotY += (py - shotY) * this.aimBias;
+    }
     game.enemyProjectiles.push(
-      new EnemyProjectile(entity.x, entity.y + entity.height / 2, this.damage)
+      new EnemyProjectile(entity.x, shotY, this.damage)
     );
   }
 }
@@ -1809,19 +1863,59 @@ class WeaponComponent {
 // Componente de Arma Tripla (Bomber)
 class TripleWeaponComponent extends WeaponComponent {
   fire(entity) {
-    // Atira 3 projéteis em linha vertical
+    const player = game.player;
+    let baseY = entity.y + entity.height / 2;
+    if (this.aimBias > 0 && player) {
+      const py = player.y + player.height / 2;
+      baseY += (py - baseY) * this.aimBias;
+    }
     for (let i = -1; i <= 1; i++) {
       game.enemyProjectiles.push(
-        new EnemyProjectile(entity.x, entity.y + entity.height / 2 + i * 10, this.damage)
+        new EnemyProjectile(entity.x, baseY + i * 10, this.damage)
       );
     }
   }
 }
 
-// Componente de Arma Sniper (Angular/Mira)
+// Componente de Arma Sniper (Angular/Mira) + telegraph
 class SniperWeaponComponent extends WeaponComponent {
+  constructor(config = {}) {
+    super({ ...config, alwaysAlign: true, requireAlign: false });
+    this.telegraphFrames = 0;
+    this.pendingShot = false;
+  }
+
+  update(entity) {
+    // Durante telegraph: desacelera movimento
+    const move = entity.components?.find((c) => c instanceof WobbleMovement);
+    if (this.pendingShot && this.telegraphFrames > 0) {
+      this.telegraphFrames--;
+      if (move) move.speedMultiplier = 0.3;
+      if (this.telegraphFrames <= 0) {
+        this.fire(entity);
+        this.pendingShot = false;
+        if (move) move.speedMultiplier = 1;
+        this.cooldown =
+          Math.random() * (this.cooldownMax - this.cooldownMin) + this.cooldownMin;
+      }
+      return;
+    }
+
+    this.cooldown--;
+    if (this.cooldown <= 0) {
+      if (this.canFire(entity)) {
+        this.pendingShot = true;
+        this.telegraphFrames = 35; // ~0.5s a 60fps
+        if (move) move.speedMultiplier = 0.3;
+      } else {
+        this.cooldown = 25;
+      }
+    }
+  }
+
   fire(entity) {
     const target = game.player;
+    if (!target) return;
     game.enemyProjectiles.push(
       new EnemyProjectileAngular(
         entity.x,
@@ -2015,76 +2109,113 @@ function createEnemy(x, y, type = 'basic', overrides = {}) {
       width: 50,
       height: 50,
       health: 2,
-      shield: 0, // Sem shield por padrão
-      movement: { speed: 2, wobbleSpeed: 0.06, wobbleAmplitude: 15 },
+      shield: 0,
+      movement: { speed: 2, wobbleSpeed: 0.06, wobbleAmplitude: 15, trackPlayer: 0.15 },
       flames: { spawnRate: 3, particleCount: [2, 3] },
-      weapon: { damage: 1, cooldownMin: 60, cooldownMax: 180 }
+      weapon: { damage: 1, cooldownMin: 60, cooldownMax: 180, aimBias: 0.25 }
     },
     drone: {
       sprite: 'inimigo2',
       width: 45,
       height: 45,
       health: 4,
-      shield: 0, // Sem shield por padrão
-      movement: { speed: 2.5, wobbleSpeed: 0.08, wobbleAmplitude: 10 },
+      shield: 0,
+      movement: { speed: 2.5, wobbleSpeed: 0.08, wobbleAmplitude: 10, trackPlayer: 0.35 },
       flames: { spawnRate: 4, particleCount: [1, 2] },
-      weapon: { damage: 1, cooldownMin: 60, cooldownMax: 180 }
+      weapon: { damage: 1, cooldownMin: 60, cooldownMax: 180, aimBias: 0.35 }
     },
     bomber: {
-      sprite: 'inimigo3', // Pode criar sprite próprio depois
+      sprite: 'inimigo3',
       width: 60,
       height: 60,
       health: 5,
-      shield: 0, // Sem shield por padrão
-      movement: { speed: 1.5, wobbleSpeed: 0.05, wobbleAmplitude: 22 },
+      shield: 0,
+      movement: { speed: 1.5, wobbleSpeed: 0.05, wobbleAmplitude: 22, trackPlayer: 0.12 },
       flames: { spawnRate: 1, particleCount: [2, 3] },
-      weaponType: 'triple', // Usa arma tripla
-      weapon: { damage: 1, cooldownMin: 90, cooldownMax: 150 }
+      weaponType: 'triple',
+      weapon: { damage: 1, cooldownMin: 90, cooldownMax: 150, aimBias: 0.15, alignRange: 100 }
     },
     sniper: {
-      sprite: 'inimigo4', // Pode criar sprite próprio depois
+      sprite: 'inimigo4',
       width: 60,
       height: 30,
       health: 4,
-      shield: 0, // Sem shield por padrão
-      movement: { speed: 1, wobbleSpeed: 0.03, wobbleAmplitude: 8 }, // Mais lento
+      shield: 0,
+      movement: { speed: 1, wobbleSpeed: 0.03, wobbleAmplitude: 8, trackPlayer: 0.05 },
       flames: { spawnRate: 5, particleCount: [1, 2] },
-      weaponType: 'sniper', // Usa arma de mira
+      weaponType: 'sniper',
       weapon: { damage: 2, cooldownMin: 180, cooldownMax: 240 }
     },
     shielded: {
-      sprite: 'inimigo5', // Pode criar sprite próprio depois
+      sprite: 'inimigo5',
       width: 60,
       height: 30,
       health: 6,
-      shield: 5, // Shield padrão para tipo shielded
-      movement: { speed: 1.5, wobbleSpeed: 0.04, wobbleAmplitude: 10 },
+      shield: 5,
+      movement: {
+        speed: 1.5,
+        wobbleSpeed: 0.04,
+        wobbleAmplitude: 10,
+        trackPlayer: 0.28,
+        chargeBoost: 0.55
+      },
       flames: { spawnRate: 4, particleCount: [2, 3] },
-      weapon: { damage: 2, cooldownMin: 70, cooldownMax: 130 }
+      weapon: { damage: 2, cooldownMin: 70, cooldownMax: 130, aimBias: 0.2 }
     }
   };
-  
-  // Pega a configuração base do tipo
+
   const baseConfig = configs[type] || configs.basic;
-  
-  // Mescla com overrides (permitindo customizar health, shield, etc)
-  const config = { ...baseConfig, ...overrides };
-  
+  const { waveNumber, ...restOverrides } = overrides;
+
+  // Deep-merge movement/weapon para overrides de scaling por wave
+  const config = {
+    ...baseConfig,
+    ...restOverrides,
+    movement: { ...baseConfig.movement, ...(restOverrides.movement || {}) },
+    weapon: { ...baseConfig.weapon, ...(restOverrides.weapon || {}) },
+    flames: restOverrides.flames !== undefined
+      ? restOverrides.flames
+      : baseConfig.flames
+  };
+
+  // Escalada leve por wave (track ↑ / cooldown ↓), cap ~1.3
+  const scale = getWaveAiScale(waveNumber);
+  if (config.movement?.trackPlayer) {
+    config.movement.trackPlayer = Math.min(0.55, config.movement.trackPlayer * scale);
+  }
+  if (config.weapon) {
+    if (config.weapon.cooldownMin != null) {
+      config.weapon.cooldownMin = Math.max(
+        35,
+        Math.floor(config.weapon.cooldownMin / scale)
+      );
+    }
+    if (config.weapon.cooldownMax != null) {
+      config.weapon.cooldownMax = Math.max(
+        50,
+        Math.floor(config.weapon.cooldownMax / scale)
+      );
+    }
+  }
+
   const enemy = new EnemyComposed(x, y, config);
   clampEnemyY(enemy);
 
-  // Adiciona arma customizada se necessário
   if (config.weaponType === 'triple') {
-    // Remove arma padrão e adiciona tripla
-    enemy.components = enemy.components.filter(c => !(c instanceof WeaponComponent));
+    enemy.components = enemy.components.filter((c) => !(c instanceof WeaponComponent));
     enemy.components.push(new TripleWeaponComponent(config.weapon));
   } else if (config.weaponType === 'sniper') {
-    enemy.components = enemy.components.filter(c => !(c instanceof WeaponComponent));
+    enemy.components = enemy.components.filter((c) => !(c instanceof WeaponComponent));
     enemy.components.push(new SniperWeaponComponent(config.weapon));
   }
-  
-  
+
   return enemy;
+}
+
+/** Escalada leve: track e cooldown apertam com a wave (cap ~1.3). */
+function getWaveAiScale(waveNumber) {
+  const wave = waveNumber || 1;
+  return Math.min(1.3, 1 + wave * 0.02);
 }
 
 // Nova classe Enemy com composição
@@ -2663,20 +2794,22 @@ let Tank = class Tank {
     this.width = 80;
     this.height = 60;
     this.speed = 1.2;
-    this.cooldown = Math.random() * 180 + 60;
-    this.cannonAngle = 0; // Ângulo do canhão
-    this.cannonLength = 45; // Comprimento do canhão
-    
-    // Propriedades das rodas
-    this.wheelRotation = 0; // Ângulo de rotação das rodas
-    this.wheelRadius = 9; // Raio das rodas
-    this.wheelPositions = [ // Posições relativas das 3 rodas
-      { x: 15, y: this.height - 11},  // Roda esquerda
-      { x: 35, y: this.height - 11 },  // Roda central
-      { x: 55, y: this.height - 11}   // Roda direita
+    this.cannonAngle = 0;
+    this.cannonLength = 45;
+
+    // Ciclo: andar → parar → atirar → andar
+    this.aiPhase = 'move'; // 'move' | 'aim' | 'fire'
+    this.phaseTimer = 50 + Math.floor(Math.random() * 40);
+    this.shotsThisStop = 0;
+
+    this.wheelRotation = 0;
+    this.wheelRadius = 9;
+    this.wheelPositions = [
+      { x: 15, y: this.height - 11 },
+      { x: 35, y: this.height - 11 },
+      { x: 55, y: this.height - 11 }
     ];
-    
-    // Sistema de partículas de fumaça
+
     this.smokeParticles = [];
     this.smokeSpawnCounter = 0;
   }
@@ -2750,61 +2883,86 @@ let Tank = class Tank {
     ctx.restore();
   }
 
-  update() {
-    this.x -= this.speed;
-    
-    // Anima as rodas baseado no movimento
-    // Rotação proporcional à velocidade (quanto mais rápido, mais gira)
-    this.wheelRotation += this.speed * 0.15;
-    
-    // Sistema de partículas de fumaça do motor
-    this.smokeSpawnCounter++;
-    if (this.smokeSpawnCounter >= 8) { // Spawna fumaça a cada 8 frames
-      // Posição do escapamento (parte traseira do tank)
-      const exhaustX = this.x +this.width - 5; // Traseira do tank
-      const exhaustY = this.y + this.height / 2;
-      this.smokeParticles.push(new TankSmokeParticle(exhaustX, exhaustY));
-      this.smokeSpawnCounter = 0;
-    }
-    
-    // Atualiza e remove partículas mortas
-    this.smokeParticles.forEach(p => p.update());
-    this.smokeParticles = this.smokeParticles.filter(p => !p.dead);
-    
-    // Calcula o ângulo para apontar para o player
-    const target = game.player;
-    const dx = target.x + target.width / 2 - (this.x + this.width / 2);
-    const dy = target.y + target.height / 2 - (this.y + this.height / 2 - 5);
-    this.cannonAngle = Math.atan2(dy, dx);
-    
-    this.cooldown--;
-    if (this.cooldown <= 0) {
-      // Calcula a posição da ponta do canhão
-      const cannonBaseX = this.x + this.width / 2;
-      const cannonBaseY = this.y + this.height / 2 - 5;
-      const cannonTipX = cannonBaseX + Math.cos(this.cannonAngle) * this.cannonLength;
-      const cannonTipY = cannonBaseY + Math.sin(this.cannonAngle) * this.cannonLength;
-      
-      // Dispara da ponta do canhão
-      game.enemyProjectiles.push(
-        new EnemyProjectileAngular(
-          cannonTipX,
-          cannonTipY,
-          target.x + target.width / 2,
-          target.y + target.height / 2
-        )
+  fireCannon(target) {
+    const cannonBaseX = this.x + this.width / 2;
+    const cannonBaseY = this.y + this.height / 2 - 5;
+    const cannonTipX = cannonBaseX + Math.cos(this.cannonAngle) * this.cannonLength;
+    const cannonTipY = cannonBaseY + Math.sin(this.cannonAngle) * this.cannonLength;
+
+    game.enemyProjectiles.push(
+      new EnemyProjectileAngular(
+        cannonTipX,
+        cannonTipY,
+        target.x + target.width / 2,
+        target.y + target.height / 2
+      )
+    );
+
+    const particleCount = Math.floor(Math.random() * 3) + 6;
+    for (let i = 0; i < particleCount; i++) {
+      this.smokeParticles.push(
+        new MuzzleFlashParticle(cannonTipX - 5, cannonTipY - 5, this.cannonAngle)
       );
-      
-      // Cria partículas de flash do disparo (6-8 partículas)
-      const particleCount = Math.floor(Math.random() * 3) + 6;
-      for (let i = 0; i < particleCount; i++) {
-        this.smokeParticles.push(
-          new MuzzleFlashParticle(cannonTipX - 5, cannonTipY - 5, this.cannonAngle)
-        );
-      }
-      
-      this.cooldown = Math.random() * 180 + 60;
     }
+  }
+
+  update() {
+    const target = game.player;
+    const onScreen = this.x < canvas.width - 20;
+
+    // Mira sempre no player
+    if (target) {
+      const dx = target.x + target.width / 2 - (this.x + this.width / 2);
+      const dy = target.y + target.height / 2 - (this.y + this.height / 2 - 5);
+      this.cannonAngle = Math.atan2(dy, dx);
+    }
+
+    this.phaseTimer--;
+
+    if (this.aiPhase === 'move') {
+      this.x -= this.speed;
+      this.wheelRotation += this.speed * 0.15;
+
+      this.smokeSpawnCounter++;
+      if (this.smokeSpawnCounter >= 8) {
+        const exhaustX = this.x + this.width - 5;
+        const exhaustY = this.y + this.height / 2;
+        this.smokeParticles.push(new TankSmokeParticle(exhaustX, exhaustY));
+        this.smokeSpawnCounter = 0;
+      }
+
+      if (this.phaseTimer <= 0 && onScreen) {
+        this.aiPhase = 'aim';
+        this.phaseTimer = 40 + Math.floor(Math.random() * 21); // 40–60 frames parado
+        this.shotsThisStop = 0;
+        this.maxShotsThisStop = 1 + (Math.random() < 0.35 ? 1 : 0);
+      } else if (this.phaseTimer <= 0) {
+        this.phaseTimer = 30;
+      }
+    } else if (this.aiPhase === 'aim') {
+      // Parado — telegraph / mira
+      if (this.phaseTimer <= 0) {
+        this.aiPhase = 'fire';
+        this.phaseTimer = 8;
+      }
+    } else if (this.aiPhase === 'fire') {
+      if (!onScreen || !target) {
+        this.aiPhase = 'move';
+        this.phaseTimer = 40;
+      } else if (this.phaseTimer <= 0) {
+        this.fireCannon(target);
+        this.shotsThisStop++;
+        if (this.shotsThisStop < this.maxShotsThisStop) {
+          this.phaseTimer = 18;
+        } else {
+          this.aiPhase = 'move';
+          this.phaseTimer = 55 + Math.floor(Math.random() * 50);
+        }
+      }
+    }
+
+    this.smokeParticles.forEach((p) => p.update());
+    this.smokeParticles = this.smokeParticles.filter((p) => !p.dead);
   }
 }
 
@@ -2886,17 +3044,18 @@ function dropOnEnemyDeath(enemy) {
   }
 }
 
-function spawnDroneFormation(size = 3) {
+function spawnDroneFormation(size = 3, waveNumber) {
   const baseX = canvas.width + 50;
   const formationExtra = (size - 1) * 30;
   const minY = getPlayfieldTop() + 20;
   const maxY = getPlayfieldBottom(50) - formationExtra;
   const baseY = minY + Math.random() * Math.max(1, maxY - minY);
   const drones = [];
+  const overrides = waveNumber != null ? { waveNumber } : {};
 
   for (let i = 0; i < size; i++) {
     const offsetY = i * 30;
-    drones.push(createEnemy(baseX + i * 30, baseY + offsetY, 'drone'));
+    drones.push(createEnemy(baseX + i * 30, baseY + offsetY, 'drone', overrides));
   }
 
   return drones;
