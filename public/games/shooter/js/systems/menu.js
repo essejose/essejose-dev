@@ -1,11 +1,12 @@
-import { canvas, ctx } from '../core/canvas.js';
+import { canvas, ctx, screenToCanvas } from '../core/canvas.js';
 import { IMAGES } from '../core/assets.js';
 import { game } from '../game/state.js';
 import { createEnemy } from '../entities/combat.js';
 import { SettingsSystem } from './settings.js';
+import { FullscreenPrompt } from './fullscreen.js';
 
 /**
- * Tela de menu — sprite menu.png + atmosfera (sol + inimigos decorativos).
+ * Tela de menu — fundo menu.png + logo/start/config empilhados.
  */
 const MenuSystem = {
   active: false,
@@ -14,12 +15,8 @@ const MenuSystem = {
   decorEnemies: [],
   spawnTimer: 0,
   sunPulse: 0,
-
-  /** Hitboxes relativas ao PNG 1669×942 */
-  REGIONS: {
-    play: { x: 0.30, y: 0.495, w: 0.40, h: 0.085 },
-    settings: { x: 0.30, y: 0.615, w: 0.40, h: 0.085 },
-  },
+  /** Evita double-fire pointerup + touchstart no mesmo toque */
+  _lastPointerAt: 0,
 
   show() {
     this.active = true;
@@ -31,6 +28,7 @@ const MenuSystem = {
     for (let i = 0; i < 3; i++) {
       this.spawnDecorEnemy(true);
     }
+    FullscreenPrompt.show();
   },
 
   hide() {
@@ -38,35 +36,75 @@ const MenuSystem = {
     this.layout = null;
     this.hazeParticles = [];
     this.decorEnemies = [];
+    FullscreenPrompt.hide();
   },
 
   computeLayout() {
-    const img = IMAGES.hudMenu;
-    const nw = img?.naturalWidth || 1669;
-    const nh = img?.naturalHeight || 942;
-    // Cover ancorado no canto superior-esquerdo (logo/botões no canto)
-    const scale = Math.max(canvas.width / nw, canvas.height / nh);
-    const w = nw * scale;
-    const h = nh * scale;
-    const x = 0;
-    const y = 0;
+    const cw = canvas.width;
+    const ch = canvas.height;
 
-    const box = (r) => ({
-      x: x + r.x * w,
-      y: y + r.y * h,
-      w: r.w * w,
-      h: r.h * h,
-    });
+    // Fundo cover centralizado
+    const bg = IMAGES.hudMenu;
+    const nw = bg?.naturalWidth || 1669;
+    const nh = bg?.naturalHeight || 942;
+    const bgScale = Math.max(cw / nw, ch / nh);
+    const panelW = nw * bgScale;
+    const panelH = nh * bgScale;
+    const panelX = (cw - panelW) / 2;
+    const panelY = (ch - panelH) / 2;
+
+    // Sprites da UI
+    const logoImg = IMAGES.hudMenuLogo;
+    const startImg = IMAGES.hudMenuStart;
+    const logoNw = logoImg?.naturalWidth || 625;
+    const logoNh = logoImg?.naturalHeight || 275;
+    const btnNw = startImg?.naturalWidth || 440;
+    const btnNh = startImg?.naturalHeight || 97;
+
+    const logoW = Math.min(cw * 0.55, 420);
+    const logoH = logoW * (logoNh / logoNw);
+    const btnW = Math.min(cw * 0.42, 320);
+    const btnH = btnW * (btnNh / btnNw);
+
+    const gapLogoStart = ch * 0.045;
+    const gapStartConfig = ch * 0.018;
+    const stackH = logoH + gapLogoStart + btnH + gapStartConfig + btnH;
+    let y = (ch - stackH) / 2;
+
+    const logo = {
+      x: (cw - logoW) / 2,
+      y,
+      w: logoW,
+      h: logoH,
+    };
+    y += logoH + gapLogoStart;
+
+    const play = {
+      x: (cw - btnW) / 2,
+      y,
+      w: btnW,
+      h: btnH,
+    };
+    y += btnH + gapStartConfig;
+
+    const settings = {
+      x: (cw - btnW) / 2,
+      y,
+      w: btnW,
+      h: btnH,
+    };
 
     this.layout = {
-      panel: { x, y, w, h },
-      play: box(this.REGIONS.play),
-      settings: box(this.REGIONS.settings),
+      panel: { x: panelX, y: panelY, w: panelW, h: panelH },
+      logo,
+      play,
+      settings,
       sun: {
-        x: x + w * 0.88,
-        y: y + h * 0.12,
+        x: panelX + panelW * 0.88,
+        y: panelY + panelH * 0.12,
       },
-      scale,
+      scale: bgScale,
+      narrow: cw / Math.max(1, ch) < 1.35,
     };
     return this.layout;
   },
@@ -78,8 +116,13 @@ const MenuSystem = {
     const x = spreadX
       ? canvas.width * (0.2 + Math.random() * 0.75)
       : canvas.width + 40 + Math.random() * 80;
-    // Faixa baixa: acima da cidade, abaixo dos botões
-    const baseY = canvas.height * (0.70 + Math.random() * 0.12);
+    // Faixa baixa — abaixo da stack de UI
+    const L = this.layout || this.computeLayout();
+    const uiBottom = L.settings.y + L.settings.h;
+    const floor = Math.min(canvas.height - 40, uiBottom + 16);
+    const ceil = canvas.height - 24;
+    const baseY = floor + Math.random() * Math.max(10, ceil - floor);
+
     const enemy = createEnemy(x, baseY, type, {
       weapon: false,
       flames: { spawnRate: 12, particleCount: [1, 1], maxParticles: 3 },
@@ -141,7 +184,6 @@ const MenuSystem = {
     const pulse = 0.9 + Math.sin(this.sunPulse) * 0.1;
     const sx = L.sun.x;
     const sy = L.sun.y;
-    // Só um halo bem suave em volta do sol da arte — sem segundo núcleo
     const r = Math.max(canvas.width, canvas.height) * 0.28 * pulse;
     const sun = ctx.createRadialGradient(sx, sy, r * 0.15, sx, sy, r);
     sun.addColorStop(0, `rgba(255, 230, 160, ${0.12 * pulse})`);
@@ -150,7 +192,6 @@ const MenuSystem = {
     ctx.fillStyle = sun;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Motes de luz (não formam outro sol)
     for (const p of this.hazeParticles) {
       const a = Math.max(0, p.life / (p.maxLife || 90)) * 0.16;
       const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
@@ -160,6 +201,13 @@ const MenuSystem = {
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
       ctx.fill();
+    }
+  },
+
+  drawSprite(ctx, img, box) {
+    if (!box) return;
+    if (img && img.complete && img.naturalWidth) {
+      ctx.drawImage(img, box.x, box.y, box.w, box.h);
     }
   },
 
@@ -175,14 +223,12 @@ const MenuSystem = {
       this.spawnDecorEnemy(false);
     }
 
-    // Movimento próprio (evita clampEnemyY puxar para a faixa do HUD do jogo)
     for (let i = this.decorEnemies.length - 1; i >= 0; i--) {
       const e = this.decorEnemies[i];
       e.x -= e._menuSpeed || 1;
       e._wobbleT = (e._wobbleT || 0) + 0.035;
       e.y = e._menuBaseY + Math.sin(e._wobbleT) * 8;
       e.baseY = e._menuBaseY;
-      // Chamas leves
       for (const c of e.components || []) {
         if (c.particles && c.update) c.update(e);
       }
@@ -195,24 +241,23 @@ const MenuSystem = {
   draw(ctx) {
     if (!this.active) return;
     const L = this.computeLayout();
-    const img = IMAGES.hudMenu;
 
     ctx.fillStyle = '#5BAFFF';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    if (img && img.complete && img.naturalWidth) {
-      ctx.drawImage(img, L.panel.x, L.panel.y, L.panel.w, L.panel.h);
-    }
-
-    // Atmosfera do sol (sobre o céu do art)
+    this.drawSprite(ctx, IMAGES.hudMenu, L.panel);
     this.drawSunAtmosphere(ctx, L);
 
-    // Inimigos na faixa baixa (acima da cidade, abaixo dos botões)
     for (const e of this.decorEnemies) {
       ctx.globalAlpha = e._menuAlpha ?? 0.5;
       e.draw();
       ctx.globalAlpha = 1;
     }
+
+    // UI por cima: logo → start → config
+    this.drawSprite(ctx, IMAGES.hudMenuLogo, L.logo);
+    this.drawSprite(ctx, IMAGES.hudMenuStart, L.play);
+    this.drawSprite(ctx, IMAGES.hudMenuConfig, L.settings);
   },
 
   hit(box, x, y) {
@@ -221,6 +266,10 @@ const MenuSystem = {
 
   handleClick(canvasX, canvasY) {
     if (!this.active) return false;
+    const now = performance.now();
+    if (now - this._lastPointerAt < 120) return true;
+    this._lastPointerAt = now;
+
     const L = this.layout || this.computeLayout();
 
     if (this.hit(L.play, canvasX, canvasY)) {
@@ -234,16 +283,31 @@ const MenuSystem = {
     return false;
   },
 
+  _onPointerEvent(e) {
+    if (!this.active) return;
+    if (e.type !== 'touchend' && e.button != null && e.button !== 0) return;
+
+    let clientX;
+    let clientY;
+    if (e.type === 'touchend') {
+      const t = e.changedTouches?.[0];
+      if (!t) return;
+      clientX = t.clientX;
+      clientY = t.clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+
+    const { x, y } = screenToCanvas(clientX, clientY);
+    this.handleClick(x, y);
+  },
+
   init() {
-    canvas.addEventListener('click', (e) => {
-      if (!this.active) return;
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = canvas.width / Math.max(1, rect.width);
-      const scaleY = canvas.height / Math.max(1, rect.height);
-      const x = (e.clientX - rect.left) * scaleX;
-      const y = (e.clientY - rect.top) * scaleY;
-      this.handleClick(x, y);
-    });
+    const handler = (e) => this._onPointerEvent(e);
+    canvas.addEventListener('pointerup', handler);
+    canvas.addEventListener('click', handler);
+    canvas.addEventListener('touchend', handler, { passive: true });
   },
 };
 

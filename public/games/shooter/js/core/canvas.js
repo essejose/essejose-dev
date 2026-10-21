@@ -16,10 +16,28 @@ export function screenToCanvas(clientX, clientY) {
   };
 }
 
+/** UI que consome o toque (não move o player). */
+function isUiBlockingTouch() {
+  if (window.MenuSystem?.active) return true;
+  if (window.GameOverSystem?.active) return true;
+  if (window.SettingsSystem?.isOpen) return true;
+  if (window.ShopSystem?.isOpen) return true;
+  return false;
+}
+
 export function handleTouch(e) {
-  e.preventDefault();
+  // Menu / overlays: não preventDefault — senão o simulador/mobile
+  // cancela pointerup/click e o botão Jogar “não clica”.
+  if (isUiBlockingTouch()) return;
+
   const touch = e.touches[0];
+  if (!touch) return;
   const { x, y } = screenToCanvas(touch.clientX, touch.clientY);
+
+  // Toque no botão shop do HUD: não move o player nem engole o click
+  if (window.HudSystem?.hitShop?.(x, y)) return;
+
+  e.preventDefault();
   const g = window.game;
   if (!g?.player) return;
   g.player.targetX = x - g.player.width / 2;
@@ -67,4 +85,7 @@ export function initCanvas() {
   canvas.addEventListener("touchmove", handleTouch, { passive: false });
   resizeCanvas();
   window.addEventListener("resize", resizeCanvas);
+  window.addEventListener("orientationchange", () => {
+    setTimeout(resizeCanvas, 100);
+  });
 }

@@ -7,20 +7,24 @@ import { HudSystem } from "./systems/hud.js";
 import { GameOverSystem } from "./systems/gameover.js";
 import { MenuSystem } from "./systems/menu.js";
 import { SettingsSystem } from "./systems/settings.js";
+import { FullscreenPrompt } from "./systems/fullscreen.js";
 
 initCanvas();
 initInput();
 
-// HTML onclick / DevTools esperam estes no window
+// HTML onclick / DevTools / touch gate esperam estes no window
 window.game = game;
 window.ShopSystem = ShopSystem;
 window.DialogSystem = DialogSystem;
 window.DevTools = DevTools;
 window.SettingsSystem = SettingsSystem;
 window.MenuSystem = MenuSystem;
+window.GameOverSystem = GameOverSystem;
+window.HudSystem = HudSystem;
 
 loadImages(ASSETS, () => {
   SettingsSystem.init();
+  FullscreenPrompt.init();
   MenuSystem.init();
   game.init();
   ShopSystem.init();
