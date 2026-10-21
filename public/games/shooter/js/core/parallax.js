@@ -94,39 +94,53 @@ export class ParallaxLayer {
   }
 }
 
+/** Cache offscreen do overlay de atmosfera (rebuild só no resize). */
+let atmosphereCache = null;
+let atmosphereCacheW = 0;
+let atmosphereCacheH = 0;
+
+function rebuildAtmosphereCache(w, h) {
+  if (!atmosphereCache) atmosphereCache = document.createElement("canvas");
+  atmosphereCache.width = w;
+  atmosphereCache.height = h;
+  atmosphereCacheW = w;
+  atmosphereCacheH = h;
+
+  const a = atmosphereCache.getContext("2d");
+  a.clearRect(0, 0, w, h);
+
+  const sunX = w * 0.78;
+  const sunY = h * 0.08;
+  const sunR = Math.max(w, h) * 0.62;
+  const sun = a.createRadialGradient(sunX, sunY, 0, sunX, sunY, sunR);
+  sun.addColorStop(0, "rgba(255, 220, 140, 0.32)");
+  sun.addColorStop(0.25, "rgba(255, 190, 100, 0.14)");
+  sun.addColorStop(0.55, "rgba(255, 170, 80, 0.05)");
+  sun.addColorStop(1, "rgba(255, 180, 100, 0)");
+  a.fillStyle = sun;
+  a.fillRect(0, 0, w, h);
+
+  const cx = w * 0.5;
+  const cy = h * 0.48;
+  const vignetteR = Math.sqrt(w * w + h * h) * 0.52;
+  const vignette = a.createRadialGradient(cx, cy, vignetteR * 0.3, cx, cy, vignetteR);
+  vignette.addColorStop(0, "rgba(15, 22, 40, 0)");
+  vignette.addColorStop(0.55, "rgba(15, 22, 40, 0.08)");
+  vignette.addColorStop(1, "rgba(15, 22, 40, 0.4)");
+  a.fillStyle = vignette;
+  a.fillRect(0, 0, w, h);
+}
+
 /**
- * Sol suave (canto superior-direito) + vinheta — só no fundo, antes das entidades.
+ * Sol + vinheta — blit do cache (só regenera se o tamanho mudou).
  * @param {CanvasRenderingContext2D} drawCtx
  * @param {HTMLCanvasElement} targetCanvas
  */
 export function drawAtmosphereLighting(drawCtx, targetCanvas) {
   const w = targetCanvas.width;
   const h = targetCanvas.height;
-
-  drawCtx.save();
-
-  // Sol / god-ray no céu (canto superior-direito)
-  const sunX = w * 0.78;
-  const sunY = h * 0.08;
-  const sunR = Math.max(w, h) * 0.62;
-  const sun = drawCtx.createRadialGradient(sunX, sunY, 0, sunX, sunY, sunR);
-  sun.addColorStop(0, "rgba(255, 220, 140, 0.32)");
-  sun.addColorStop(0.25, "rgba(255, 190, 100, 0.14)");
-  sun.addColorStop(0.55, "rgba(255, 170, 80, 0.05)");
-  sun.addColorStop(1, "rgba(255, 180, 100, 0)");
-  drawCtx.fillStyle = sun;
-  drawCtx.fillRect(0, 0, w, h);
-
-  // Vinheta nas bordas
-  const cx = w * 0.5;
-  const cy = h * 0.48;
-  const vignetteR = Math.sqrt(w * w + h * h) * 0.52;
-  const vignette = drawCtx.createRadialGradient(cx, cy, vignetteR * 0.3, cx, cy, vignetteR);
-  vignette.addColorStop(0, "rgba(15, 22, 40, 0)");
-  vignette.addColorStop(0.55, "rgba(15, 22, 40, 0.08)");
-  vignette.addColorStop(1, "rgba(15, 22, 40, 0.4)");
-  drawCtx.fillStyle = vignette;
-  drawCtx.fillRect(0, 0, w, h);
-
-  drawCtx.restore();
+  if (!atmosphereCache || atmosphereCacheW !== w || atmosphereCacheH !== h) {
+    rebuildAtmosphereCache(w, h);
+  }
+  drawCtx.drawImage(atmosphereCache, 0, 0);
 }

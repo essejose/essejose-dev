@@ -452,15 +452,12 @@ class ExplosionParticle {
   }
 
   draw(context = ctx) {
-    context.save();
     context.globalAlpha = this.alpha;
-    context.shadowBlur = 10;
-    context.shadowColor = this.color;
     context.fillStyle = this.color;
     context.beginPath();
     context.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
     context.fill();
-    context.restore();
+    context.globalAlpha = 1;
   }
 
   get dead() {
@@ -469,7 +466,7 @@ class ExplosionParticle {
 }
 
 // Função para criar explosão completa
-function createExplosion(x, y, size = 1, particleCount = 20) {
+function createExplosion(x, y, size = 1, particleCount = 12) {
   for (let i = 0; i < particleCount; i++) {
     game.particles.push(new ExplosionParticle(x, y, "orange", size));
   }
@@ -1849,34 +1846,46 @@ class FlameEmitter {
   constructor(config = {}) {
     this.particles = [];
     this.spawnCounter = 0;
-    this.spawnRate = config.spawnRate || 3;
-    this.particleCount = config.particleCount || [2, 3];
+    this.spawnRate = config.spawnRate || 6;
+    this.particleCount = config.particleCount || [1, 1];
     this.offsetX = config.offsetX || 0;
     this.offsetY = config.offsetY || 0;
+    this.maxParticles = config.maxParticles || 10;
   }
-  
+
   update(entity) {
     this.spawnCounter++;
-    if (this.spawnCounter >= this.spawnRate) {
+    if (
+      this.spawnCounter >= this.spawnRate &&
+      this.particles.length < this.maxParticles
+    ) {
       this.spawnCounter = 0;
       const turbineX = entity.x + entity.width + this.offsetX;
       const turbineY = entity.y + entity.height / 2 + this.offsetY;
-      
+
       const min = this.particleCount[0];
       const max = this.particleCount[1];
       const count = Math.floor(Math.random() * (max - min + 1)) + min;
-      
+
       for (let i = 0; i < count; i++) {
-        this.particles.push(new FlameParticle(turbineX, turbineY + (Math.random() - 0.5) * 10));
+        if (this.particles.length >= this.maxParticles) break;
+        this.particles.push(
+          new FlameParticle(turbineX, turbineY + (Math.random() - 0.5) * 10)
+        );
       }
     }
-    
-    this.particles.forEach(p => p.update());
-    this.particles = this.particles.filter(p => !p.dead);
+
+    for (let i = this.particles.length - 1; i >= 0; i--) {
+      const p = this.particles[i];
+      p.update();
+      if (p.dead) this.particles.splice(i, 1);
+    }
   }
-  
+
   draw() {
-    this.particles.forEach(p => p.draw());
+    for (let i = 0; i < this.particles.length; i++) {
+      this.particles[i].draw();
+    }
   }
 }
 
@@ -2138,14 +2147,10 @@ class FlameParticle {
   }
 
   draw() {
-    const alpha = this.life / this.maxLife;
-    ctx.save();
-    ctx.globalAlpha = alpha;
+    ctx.globalAlpha = this.life / this.maxLife;
     ctx.fillStyle = this.color;
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+    ctx.fillRect(this.x - this.size, this.y - this.size, this.size * 2, this.size * 2);
+    ctx.globalAlpha = 1;
   }
 
   get dead() {
@@ -2184,7 +2189,7 @@ function createEnemy(x, y, type = 'basic', overrides = {}) {
       health: 2,
       shield: 0,
       movement: { speed: 2, wobbleSpeed: 0.06, wobbleAmplitude: 15, trackPlayer: 0.15 },
-      flames: { spawnRate: 3, particleCount: [2, 3] },
+      flames: { spawnRate: 6, particleCount: [1, 1], maxParticles: 8 },
       weapon: { damage: 1, cooldownMin: 60, cooldownMax: 180, aimBias: 0.25 }
     },
     drone: {
@@ -2194,7 +2199,7 @@ function createEnemy(x, y, type = 'basic', overrides = {}) {
       health: 4,
       shield: 0,
       movement: { speed: 2.5, wobbleSpeed: 0.08, wobbleAmplitude: 10, trackPlayer: 0.35 },
-      flames: { spawnRate: 4, particleCount: [1, 2] },
+      flames: { spawnRate: 7, particleCount: [1, 1], maxParticles: 6 },
       weapon: { damage: 1, cooldownMin: 60, cooldownMax: 180, aimBias: 0.35 }
     },
     bomber: {
@@ -2204,7 +2209,7 @@ function createEnemy(x, y, type = 'basic', overrides = {}) {
       health: 5,
       shield: 0,
       movement: { speed: 1.5, wobbleSpeed: 0.05, wobbleAmplitude: 22, trackPlayer: 0.12 },
-      flames: { spawnRate: 1, particleCount: [2, 3] },
+      flames: { spawnRate: 5, particleCount: [1, 2], maxParticles: 10 },
       weaponType: 'triple',
       weapon: { damage: 1, cooldownMin: 90, cooldownMax: 150, aimBias: 0.15, alignRange: 100 }
     },
@@ -2215,7 +2220,7 @@ function createEnemy(x, y, type = 'basic', overrides = {}) {
       health: 4,
       shield: 0,
       movement: { speed: 1, wobbleSpeed: 0.03, wobbleAmplitude: 8, trackPlayer: 0.05 },
-      flames: { spawnRate: 5, particleCount: [1, 2] },
+      flames: { spawnRate: 8, particleCount: [1, 1], maxParticles: 6 },
       weaponType: 'sniper',
       weapon: { damage: 2, cooldownMin: 180, cooldownMax: 240 }
     },
@@ -2232,7 +2237,7 @@ function createEnemy(x, y, type = 'basic', overrides = {}) {
         trackPlayer: 0.28,
         chargeBoost: 0.55
       },
-      flames: { spawnRate: 4, particleCount: [2, 3] },
+      flames: { spawnRate: 7, particleCount: [1, 1], maxParticles: 8 },
       weapon: { damage: 2, cooldownMin: 70, cooldownMax: 130, aimBias: 0.2 }
     }
   };
@@ -2495,7 +2500,8 @@ class MiniBoss {
 
     // Fogo contínuo nos motores traseiros (direita do box)
     this.flames = new FlameEmitter({
-      spawnRate: 2,
+      spawnRate: 5,
+      maxParticles: 12,
       particleCount: [3, 5],
       offsetX: -22, // puxa o fogo para os thrusters (dentro da traseira do sprite)
       offsetY: this.height * 0.05,
@@ -2835,24 +2841,12 @@ class MuzzleFlashParticle {
   }
 
   draw() {
-    ctx.save();
     ctx.globalAlpha = this.opacity;
-    
-    // Flash brilhante
     ctx.fillStyle = this.color;
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
     ctx.fill();
-    
-    // Brilho externo
-    ctx.shadowBlur = 8;
-    ctx.shadowColor = this.color;
-    ctx.fillStyle = this.color;
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size * 0.5, 0, Math.PI * 2);
-    ctx.fill();
-    
-    ctx.restore();
+    ctx.globalAlpha = 1;
   }
 
   get dead() {

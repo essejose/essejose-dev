@@ -7,6 +7,8 @@ body {
 canvas {
   display: block;
   background: #cceeff;
+  /* Resolução interna capped; CSS estica — image-rendering suave no upscale */
+  image-rendering: auto;
 }
 
 /* Botão flutuante da loja */
