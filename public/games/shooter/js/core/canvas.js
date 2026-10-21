@@ -1,3 +1,5 @@
+import { JoystickSystem } from "../systems/joystick.js";
+
 export const canvas = document.getElementById("game");
 export const ctx = canvas.getContext("2d");
 
@@ -25,16 +27,61 @@ function isUiBlockingTouch() {
   return false;
 }
 
+function findTouch(e, id) {
+  if (id == null) return e.changedTouches?.[0] || e.touches?.[0];
+  const list = e.changedTouches?.length ? e.changedTouches : e.touches;
+  for (let i = 0; i < (list?.length || 0); i++) {
+    if (list[i].identifier === id) return list[i];
+  }
+  return null;
+}
+
 export function handleTouch(e) {
   // Menu / overlays: não preventDefault — senão o simulador/mobile
   // cancela pointerup/click e o botão Jogar “não clica”.
-  if (isUiBlockingTouch()) return;
+  if (isUiBlockingTouch()) {
+    JoystickSystem.end();
+    return;
+  }
 
+  // Joystick flutuante (mobile) substitui follow-finger
+  if (JoystickSystem.isEnabled()) {
+    if (e.type === "touchstart") {
+      const touch = e.changedTouches[0] || e.touches[0];
+      if (!touch) return;
+      const { x, y } = screenToCanvas(touch.clientX, touch.clientY);
+      if (window.HudSystem?.hitShop?.(x, y)) return;
+      e.preventDefault();
+      JoystickSystem.begin(x, y, touch.identifier);
+      return;
+    }
+
+    if (e.type === "touchmove") {
+      const touch = findTouch(e, JoystickSystem.touchId) || e.touches[0];
+      if (!touch || !JoystickSystem.active) return;
+      e.preventDefault();
+      const { x, y } = screenToCanvas(touch.clientX, touch.clientY);
+      JoystickSystem.move(x, y);
+      return;
+    }
+
+    if (e.type === "touchend" || e.type === "touchcancel") {
+      const touch = findTouch(e, JoystickSystem.touchId);
+      if (touch) {
+        e.preventDefault();
+        JoystickSystem.end(touch.identifier);
+      } else if (!e.touches?.length) {
+        JoystickSystem.end();
+      }
+      return;
+    }
+  }
+
+  // Fallback (sem joystick): follow-finger legado
+  if (e.type !== "touchstart" && e.type !== "touchmove") return;
   const touch = e.touches[0];
   if (!touch) return;
   const { x, y } = screenToCanvas(touch.clientX, touch.clientY);
-
-  // Toque no botão shop do HUD: não move o player nem engole o click
   if (window.HudSystem?.hitShop?.(x, y)) return;
 
   e.preventDefault();
@@ -83,6 +130,8 @@ export function resizeCanvas() {
 export function initCanvas() {
   canvas.addEventListener("touchstart", handleTouch, { passive: false });
   canvas.addEventListener("touchmove", handleTouch, { passive: false });
+  canvas.addEventListener("touchend", handleTouch, { passive: false });
+  canvas.addEventListener("touchcancel", handleTouch, { passive: false });
   resizeCanvas();
   window.addEventListener("resize", resizeCanvas);
   window.addEventListener("orientationchange", () => {

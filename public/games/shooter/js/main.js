@@ -8,6 +8,7 @@ import { GameOverSystem } from "./systems/gameover.js";
 import { MenuSystem } from "./systems/menu.js";
 import { SettingsSystem } from "./systems/settings.js";
 import { FullscreenPrompt } from "./systems/fullscreen.js";
+import { JoystickSystem } from "./systems/joystick.js";
 
 initCanvas();
 initInput();
@@ -21,10 +22,12 @@ window.SettingsSystem = SettingsSystem;
 window.MenuSystem = MenuSystem;
 window.GameOverSystem = GameOverSystem;
 window.HudSystem = HudSystem;
+window.JoystickSystem = JoystickSystem;
 
 loadImages(ASSETS, () => {
   SettingsSystem.init();
   FullscreenPrompt.init();
+  JoystickSystem.init();
   MenuSystem.init();
   game.init();
   ShopSystem.init();
