@@ -204,6 +204,13 @@ const WaveSystem = {
   waveActive: false,
   hasSpawned: false,
 
+  /** Para spawns pendentes e volta ao estado inicial (antes de startWave). */
+  reset() {
+    this.waveActive = false;
+    this.hasSpawned = false;
+    this.currentWave = 0;
+  },
+
   /**
    * Mostra diálogos em sequência; chama onDone quando terminar (ou se não houver).
    */

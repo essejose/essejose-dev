@@ -117,7 +117,7 @@ Object.assign(game, {
 
       SaveSystem.clear();
       
-      // Reseta tudo para valores iniciais
+      // Reseta tudo para valores iniciais (inclui wave 1)
       setTimeout(() => {
         this.lives = 3;
         this.coins = 0; 
@@ -127,15 +127,16 @@ Object.assign(game, {
         this.highWave = 0;
         this.reset();
         this.gameOver = false;
+        WaveSystem.reset();
+        WaveSystem.startWave(1);
       }, 3000);
     } else {
-      // Ainda tem vidas - salva progresso e reinicia
+      // Ainda tem vidas - salva progresso e reinicia da wave 1
       SaveSystem.save();
       setTimeout(() => {
-       
         this.reset();
         this.gameOver = false;
-        WaveSystem.currentWave = 0;
+        WaveSystem.reset();
         WaveSystem.startWave(1);
       }, 2000);
     }
@@ -149,6 +150,8 @@ Object.assign(game, {
     this.coinsDropped = [];
     this.enemies = [];
     this.tanks = [];
+    this.bossActive = false;
+    this.particles = [];
     // NÃO reseta moedas e vidas (são persistentes)
 
     // Inicializa camadas de parallax (da mais distante para a mais próxima)
