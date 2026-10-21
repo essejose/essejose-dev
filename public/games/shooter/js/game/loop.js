@@ -26,6 +26,7 @@ import { ShopSystem } from '../systems/shop.js';
 import { HudSystem } from '../systems/hud.js';
 import { GameOverSystem } from '../systems/gameover.js';
 import { MenuSystem } from '../systems/menu.js';
+import { JoystickSystem } from '../systems/joystick.js';
 // Collision helpers: ./collisions.js (aabbOverlap, distSq)
 
 // ============================================
@@ -699,6 +700,13 @@ Object.assign(game, {
 
     // HUD frames (canvas) — layout da referência
     HudSystem.draw(ctx);
+
+    // Joystick flutuante (por cima do jogo; some em pause/game over)
+    if (!this.gameOver && !this.isPaused) {
+      JoystickSystem.draw(ctx);
+    } else if (JoystickSystem.active) {
+      JoystickSystem.end();
+    }
 
     // Informações de debug (só exibe se debug estiver ativo)
     if (this.debug) {

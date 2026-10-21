@@ -1,4 +1,4 @@
-import { canvas } from '../core/canvas.js';
+import { canvas, screenToCanvas } from '../core/canvas.js';
 import { IMAGES } from '../core/assets.js';
 import { game } from '../game/state.js';
 import { WaveSystem } from './waves.js';
@@ -14,6 +14,8 @@ const GameOverSystem = {
   mode: null,
   layout: null,
   autoTimer: null,
+  /** Evita double-fire pointerup + touchstart */
+  _lastPointerAt: 0,
   snap: {
     score: 0,
     wave: 1,
@@ -205,6 +207,10 @@ const GameOverSystem = {
 
   handleClick(canvasX, canvasY) {
     if (!this.active) return false;
+    const now = performance.now();
+    if (now - this._lastPointerAt < 120) return true;
+    this._lastPointerAt = now;
+
     const L = this.layout || this.computeLayout();
 
     if (this.mode === 'die') {
@@ -226,16 +232,31 @@ const GameOverSystem = {
     return false;
   },
 
+  _onPointerEvent(e) {
+    if (!this.active) return;
+    if (e.type !== 'touchend' && e.button != null && e.button !== 0) return;
+
+    let clientX;
+    let clientY;
+    if (e.type === 'touchend') {
+      const t = e.changedTouches?.[0];
+      if (!t) return;
+      clientX = t.clientX;
+      clientY = t.clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+
+    const { x, y } = screenToCanvas(clientX, clientY);
+    this.handleClick(x, y);
+  },
+
   init() {
-    canvas.addEventListener('click', (e) => {
-      if (!this.active) return;
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = canvas.width / Math.max(1, rect.width);
-      const scaleY = canvas.height / Math.max(1, rect.height);
-      const x = (e.clientX - rect.left) * scaleX;
-      const y = (e.clientY - rect.top) * scaleY;
-      this.handleClick(x, y);
-    });
+    const handler = (e) => this._onPointerEvent(e);
+    canvas.addEventListener('pointerup', handler);
+    canvas.addEventListener('click', handler);
+    canvas.addEventListener('touchend', handler, { passive: true });
   },
 };
 

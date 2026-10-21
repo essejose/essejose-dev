@@ -1,4 +1,4 @@
-import { canvas } from '../core/canvas.js';
+import { canvas, screenToCanvas } from '../core/canvas.js';
 import { IMAGES } from '../core/assets.js';
 import { ShopSystem } from './shop.js';
 import { WaveSystem } from './waves.js';
@@ -489,17 +489,48 @@ const HudSystem = {
     return x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
   },
 
+  /** Evita double-fire pointerup + click + touchend */
+  _lastShopTapAt: 0,
+
+  tryOpenShop(canvasX, canvasY) {
+    if (game.gameOver || window.MenuSystem?.active) return false;
+    if (ShopSystem.isOpen) return false;
+    if (!this.hitShop(canvasX, canvasY)) return false;
+    const now = performance.now();
+    if (now - this._lastShopTapAt < 250) return true;
+    this._lastShopTapAt = now;
+    if (typeof ShopSystem.open === 'function') ShopSystem.open();
+    return true;
+  },
+
+  _onPointerEvent(e) {
+    if (e.type !== 'touchend' && e.button != null && e.button !== 0) return;
+
+    let clientX;
+    let clientY;
+    if (e.type === 'touchend') {
+      const t = e.changedTouches?.[0];
+      if (!t) return;
+      clientX = t.clientX;
+      clientY = t.clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+
+    const { x, y } = screenToCanvas(clientX, clientY);
+    if (this.tryOpenShop(x, y)) {
+      e.preventDefault?.();
+      e.stopPropagation?.();
+    }
+  },
+
   init() {
-    canvas.addEventListener('click', (e) => {
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
-      const x = (e.clientX - rect.left) * scaleX;
-      const y = (e.clientY - rect.top) * scaleY;
-      if (this.hitShop(x, y) && typeof ShopSystem.open === 'function') {
-        ShopSystem.open();
-      }
-    });
+    const handler = (e) => this._onPointerEvent(e);
+    // Um caminho principal (pointer) + touchend p/ simulador; sem click extra
+    // (o click sintético caía no overlay e fechava a loja na hora).
+    canvas.addEventListener('pointerup', handler);
+    canvas.addEventListener('touchend', handler, { passive: false });
   },
 };
 

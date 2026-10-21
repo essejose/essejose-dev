@@ -3,6 +3,7 @@ import { ASSETS, IMAGES } from '../core/assets.js';
 import { keys, controlMode, CONTROLSMODES } from '../core/input.js';
 import { ParallaxLayer } from '../core/parallax.js';
 import { game } from '../game/state.js';
+import { JoystickSystem } from '../systems/joystick.js';
 
 // Sistema de Moedas
 const MAX_COINS_ON_SCREEN = 50; // Limite máximo de moedas na tela
@@ -1267,16 +1268,16 @@ class Player {
       if (Math.abs(this.knockbackY) < 0.1) this.knockbackY = 0;
     }
     
-    // Movimento suave para mobile
-    if (this.targetX !== null && this.targetY !== null) {
+    // Joystick mobile: movimento por vetor (substitui follow-finger)
+    const stick = JoystickSystem.getAxis();
+    const usingStick = JoystickSystem.active && (stick.x !== 0 || stick.y !== 0);
+
+    // Follow-finger legado (só se joystick não estiver em uso)
+    if (!JoystickSystem.active && this.targetX !== null && this.targetY !== null) {
       const dx = this.targetX - this.x;
       const dy = this.targetY - this.y;
-      
-      // Interpolação suave
       this.x += dx * this.moveSpeed;
       this.y += dy * this.moveSpeed;
-      
-      // Para quando estiver próximo o suficiente do alvo
       if (Math.abs(dx) < 2 && Math.abs(dy) < 2) {
         this.x = this.targetX;
         this.y = this.targetY;
@@ -1318,8 +1319,13 @@ class Player {
     this.prevY = this.y;
 
     if (controlMode === CONTROLSMODES.HELICOPTER) {
-      // Controle vertical - Space ou Up/W para subir
-      if (keys["Space"] || keys["ArrowUp"] || keys["KeyW"]) {
+      // Controle vertical - Space ou Up/W ou stick para cima
+      if (
+        keys["Space"] ||
+        keys["ArrowUp"] ||
+        keys["KeyW"] ||
+        (usingStick && stick.y < -JoystickSystem.deadzone)
+      ) {
         this.velocity += this.lift;
       }
 
@@ -1349,6 +1355,9 @@ class Player {
         if (keys["ArrowRight"] || keys["KeyD"]) {
           this.x += speed;
         }
+        if (usingStick) {
+          this.x += stick.x * speed;
+        }
 
         // Limites da tela
         if (this.x < 0) this.x = 0;
@@ -1362,6 +1371,11 @@ class Player {
       if (keys["ArrowDown"] || keys["KeyS"]) this.y += speed;
       if (keys["ArrowLeft"] || keys["KeyA"]) this.x -= speed;
       if (keys["ArrowRight"] || keys["KeyD"]) this.x += speed;
+
+      if (usingStick) {
+        this.x += stick.x * speed;
+        this.y += stick.y * speed;
+      }
 
       const groundY = this.getLandingY();
       if (this.y >= groundY) this.y = groundY;

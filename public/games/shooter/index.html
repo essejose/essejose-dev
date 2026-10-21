@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <title>Helicopter Shooter - Jogo de Ação HTML5 | Essejose</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
     <meta name="description" content="Jogue Helicopter Shooter online grátis! Controle um helicóptero de combate, derrote inimigos e conquiste a maior pontuação. Jogo HTML5 responsivo para desktop e mobile.">
     <meta name="keywords" content="Helicopter Shooter, Game, HTML5, Canvas, JavaScript, jogo online, helicóptero, ação, grátis, browser game">
     <meta name="author" content="Essejose">
@@ -46,6 +46,14 @@
     height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <!-- End Google Tag Manager (noscript) -->
     <canvas id="game"></canvas>
+
+    <div id="fullscreenPrompt" aria-hidden="true">
+      <span class="fullscreenPromptText">Tela cheia em paisagem</span>
+      <div class="fullscreenPromptActions">
+        <button type="button" id="fullscreenPromptGo">Jogar em tela cheia</button>
+        <button type="button" id="fullscreenPromptSkip" class="fullscreenPromptSkip">Agora não</button>
+      </div>
+    </div>
     
     <!-- Painel de Desenvolvedor -->
     <div id="devPanel" style="display: none;">

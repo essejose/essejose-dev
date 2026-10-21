@@ -13,6 +13,8 @@ import { WeaponTypes, AuxiliaryWeaponTypes, WeaponInstance } from '../entities/c
 
 const ShopSystem = {
   isOpen: false,
+  /** Bloqueia fechar no mesmo toque que abriu (click-through no overlay) */
+  _openedAt: 0,
   
   // Catálogo de armas primárias
   primaryWeapons: [
@@ -101,10 +103,17 @@ const ShopSystem = {
     shopButton.addEventListener('click', () => this.open());
     
     // Fechar loja
-    closeShop.addEventListener('click', () => this.close());
-    shopModal.addEventListener('click', (e) => {
-      if (e.target === shopModal) this.close();
+    closeShop.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.close(true);
     });
+    // No mobile o mesmo toque que abre cai no overlay e fechava na hora
+    const onBackdrop = (e) => {
+      if (e.target !== shopModal) return;
+      this.close(false);
+    };
+    shopModal.addEventListener('pointerup', onBackdrop);
+    shopModal.addEventListener('click', onBackdrop);
     
     // Sistema de abas
     const tabs = document.querySelectorAll('.shopTab');
@@ -128,13 +137,19 @@ const ShopSystem = {
   },
   
   open() {
+    if (this.isOpen) return;
     this.isOpen = true;
+    this._openedAt = performance.now();
     game.isPaused = true; // Pausa o jogo
     document.getElementById('shopModal').classList.add('active');
     this.render();
   },
   
-  close() {
+  /** @param {boolean} [force] — true ignora o guard do click-through */
+  close(force = false) {
+    if (!this.isOpen) return;
+    // Mesmo toque que abriu ainda não pode fechar pelo backdrop
+    if (!force && performance.now() - this._openedAt < 400) return;
     this.isOpen = false;
     game.isPaused = false; // Despausa o jogo
     document.getElementById('shopModal').classList.remove('active');
