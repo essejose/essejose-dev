@@ -14,20 +14,40 @@ export class ParallaxLayer {
     this.speed = speed;
     this.y = y;
     this.alpha = alpha;
-    this.x1 = 0;
-    this.x2 = 0;
+    this.x = 0; // offset de scroll (normalizado em update/draw)
     this.updateScale();
   }
 
   updateScale() {
-    if (!this.image || !this.image.width) return;
-    // Se y < 0 (sobe a arte), estica a altura para continuar cobrindo o canvas
+    if (!this.image || !this.image.width || !this.image.height) return;
+
     const coverH = canvas.height - Math.min(0, this.y);
-    this.scaleY = coverH / this.image.height;
-    this.scaleX = this.scaleY;
-    this.scaledWidth = this.image.width * this.scaleX;
-    this.scaledHeight = coverH;
-    this.x2 = this.scaledWidth;
+    const scaleByH = coverH / this.image.height;
+    // Garante que 1 tile seja pelo menos tão largo quanto o canvas (evita buraco em widescreen)
+    const scaleByW = canvas.width / this.image.width;
+    const scale = Math.max(scaleByH, scaleByW);
+
+    const oldWidth = this.scaledWidth || 0;
+    this.scaleX = scale;
+    this.scaleY = scale;
+    this.scaledWidth = this.image.width * scale;
+    this.scaledHeight = this.image.height * scale;
+
+    // Preserva posição relativa do scroll ao redimensionar
+    if (oldWidth > 0 && Number.isFinite(this.x)) {
+      this.x = (this.x / oldWidth) * this.scaledWidth;
+    } else {
+      this.x = 0;
+    }
+    this._normalizeX();
+  }
+
+  /** Mantém x em [-scaledWidth, 0) para o loop de tiles começar à esquerda da tela. */
+  _normalizeX() {
+    const w = this.scaledWidth;
+    if (!w || w <= 0) return;
+    this.x = ((this.x % w) + w) % w;
+    if (this.x > 0) this.x -= w;
   }
 
   updateSpeed(mode) {
@@ -36,25 +56,41 @@ export class ParallaxLayer {
   }
 
   update() {
-    this.x1 -= this.speed;
-    this.x2 -= this.speed;
-    if (this.x1 + this.scaledWidth <= 0) this.x1 = this.x2 + this.scaledWidth;
-    if (this.x2 + this.scaledWidth <= 0) this.x2 = this.x1 + this.scaledWidth;
+    if (!this.scaledWidth) return;
+    this.x -= this.speed;
+    this._normalizeX();
   }
 
   draw(drawCtx) {
-    if (!this.image || !this.image.complete) return;
+    if (!this.image || !this.image.complete || !this.scaledWidth) return;
+
+    this._normalizeX();
+
     drawCtx.save();
     drawCtx.globalAlpha = this.alpha;
-    drawCtx.drawImage(this.image, this.x1, this.y, this.scaledWidth, this.scaledHeight);
-    drawCtx.drawImage(this.image, this.x2, this.y, this.scaledWidth, this.scaledHeight);
+
+    // Desenha tiles suficientes para cobrir toda a largura do canvas
+    for (
+      let drawX = this.x;
+      drawX < canvas.width;
+      drawX += this.scaledWidth
+    ) {
+      drawCtx.drawImage(
+        this.image,
+        drawX,
+        this.y,
+        this.scaledWidth,
+        this.scaledHeight
+      );
+    }
+
     drawCtx.restore();
   }
 
   reset() {
     this.updateScale();
-    this.x1 = 0;
-    this.x2 = this.scaledWidth;
+    this.x = 0;
+    this._normalizeX();
   }
 }
 
