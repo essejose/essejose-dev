@@ -787,16 +787,17 @@ class PowerUp {
 class Player {
   constructor() {
     this.x = 100;
-    this.y = canvas.height * 0.5;
     this.width = 80;
     this.height = 80;
     /** Compensa padding do sprite e alinha o pouso ao nível do tank na estrada. */
     this.landingSink = 28;
+    // Começa no chão (decolagem da wave sobe depois)
+    this.y = canvas.height - canvas.height * 0.1 - this.height + this.landingSink;
     this.velocity = 0;
     this.gravity = 0.3;
     this.lift = -0.6;
     this.cooldown = 0;
-    this.airborne = true;
+    this.airborne = false;
     this.maxHealth = 5;
     this.health = this.maxHealth;
     this.invincible = false;
@@ -834,6 +835,14 @@ class Player {
     // Knockback ao tomar dano
     this.knockbackX = 0;
     this.knockbackY = 0;
+
+    // Intro de decolagem (início de wave)
+    this.takeoffActive = false;
+    this.takeoffT = 0;
+    this.takeoffDuration = 72; // ~1.2s @ 60fps
+    this.takeoffFromY = 0;
+    this.takeoffToY = 0;
+    this.takeoffCallback = null;
 
     // Propriedades para animação da hélice traseira
     this.propellerAngle = 0;
@@ -1182,7 +1191,71 @@ class Player {
     return groundTop - this.height + this.landingSink;
   }
 
+  /**
+   * Animação de decolagem: chão → altitude de cruzeiro, depois onDone.
+   * @param {() => void} [onDone]
+   */
+  startTakeoffIntro(onDone) {
+    this.takeoffActive = true;
+    this.takeoffT = 0;
+    this.takeoffHold = 18; // ~0.3s no chão acelerando rotor
+    this.takeoffDuration = 84; // 1.4s de subida @ 60fps
+    this.takeoffFromY = this.getLandingY();
+    // Altitude média (não sobe até o topo)
+    this.takeoffToY = canvas.height * 0.55 - this.height / 2;
+    this.takeoffCallback = typeof onDone === "function" ? onDone : null;
+    this.y = this.takeoffFromY;
+    this.velocity = 0;
+    this.airborne = false;
+    this.targetX = null;
+    this.targetY = null;
+    this._savedMainRotorSpeed = this.mainRotorSpeed;
+    this._savedPropellerSpeed = this.propellerSpeed;
+    this.mainRotorSpeed = 0.35;
+    this.propellerSpeed = 0.4;
+  }
+
+  updateTakeoffIntro() {
+    if (!this.takeoffActive) return;
+
+    this.takeoffT++;
+    this.propellerAngle += this.propellerSpeed;
+    this.mainRotorAngle += this.mainRotorSpeed;
+
+    // Fase 1: no chão, rotor ganhando giro
+    if (this.takeoffT <= this.takeoffHold) {
+      this.y = this.takeoffFromY;
+      this.prevY = this.y;
+      return;
+    }
+
+    // Fase 2: sobe com ease-in-out (partida lenta)
+    const liftT = this.takeoffT - this.takeoffHold;
+    const t = Math.min(1, liftT / this.takeoffDuration);
+    const ease = t * t * (3 - 2 * t); // smoothstep
+    this.y = this.takeoffFromY + (this.takeoffToY - this.takeoffFromY) * ease;
+    this.prevY = this.y;
+
+    if (t >= 1) {
+      this.takeoffActive = false;
+      this.airborne = true;
+      this.velocity = 0;
+      this.y = this.takeoffToY;
+      this.mainRotorSpeed = this._savedMainRotorSpeed ?? 0.2;
+      this.propellerSpeed = this._savedPropellerSpeed ?? 0.3;
+      const cb = this.takeoffCallback;
+      this.takeoffCallback = null;
+      if (cb) cb();
+    }
+  }
+
   update() {
+    // Durante decolagem: só anima intro (sem input/tiro)
+    if (this.takeoffActive) {
+      this.updateTakeoffIntro();
+      return;
+    }
+
     // Aplica knockback
     if (this.knockbackX !== 0 || this.knockbackY !== 0) {
       this.x += this.knockbackX;

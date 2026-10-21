@@ -39,4 +39,5 @@ export const game = {
   particles: [],
   showingWaveText: false,
   waveTextTimer: 0,
+  waveIntroActive: false,
 };

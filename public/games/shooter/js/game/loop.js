@@ -152,6 +152,7 @@ Object.assign(game, {
     this.tanks = [];
     this.bossActive = false;
     this.particles = [];
+    this.waveIntroActive = false;
     // NÃO reseta moedas e vidas (são persistentes)
 
     // Inicializa camadas de parallax (da mais distante para a mais próxima)
@@ -198,6 +199,18 @@ Object.assign(game, {
     
       // Não atualiza o jogo se o player está morrendo
     if (this.player.isDying) return;
+
+    // Intro de decolagem: só heli + parallax leve
+    if (this.waveIntroActive) {
+      this.player.updateTakeoffIntro();
+      if (this.parallaxLayers) {
+        this.parallaxLayers.forEach((layer) => layer.update());
+      }
+      if (typeof this.footprintX === "number") {
+        this.footprintX -= 0.6;
+      }
+      return;
+    }
     
     // Verifica se a wave foi completada
   
@@ -801,6 +814,9 @@ Object.assign(game, {
         // Atualiza partículas de explosão
         game.particles = game.particles.filter((p) => !p.dead);
         game.particles.forEach((p) => p.update());
+      } else if (this.waveIntroActive && !this.gameOver) {
+        // Decolagem no início da wave (roda mesmo com lógica de pause lateral)
+        this.update();
       } else if (!this.isPaused && !this.gameOver) {
         // Só atualiza o resto se não estiver pausado, não estiver morrendo e não for game over
       this.update();

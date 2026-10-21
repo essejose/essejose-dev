@@ -209,6 +209,7 @@ const WaveSystem = {
     this.waveActive = false;
     this.hasSpawned = false;
     this.currentWave = 0;
+    if (game) game.waveIntroActive = false;
   },
 
   /**
@@ -261,11 +262,31 @@ const WaveSystem = {
 
     const config = WaveConfig.getWaveConfig(waveNumber);
 
-    // Diálogo ANTES dos inimigos
-    this.showWaveDialogs(config.dialog, () => {
+    const beginDialogAndSpawn = () => {
       if (!this.waveActive || this.currentWave !== waveNumber) return;
-      this.spawnWaveEnemies(waveNumber);
-    });
+      this.showWaveDialogs(config.dialog, () => {
+        if (!this.waveActive || this.currentWave !== waveNumber) return;
+        this.spawnWaveEnemies(waveNumber);
+      });
+    };
+
+    // Decolagem só na wave 1 (e após game over / restart)
+    const player = game.player;
+    if (
+      waveNumber === 1 &&
+      player &&
+      typeof player.startTakeoffIntro === "function"
+    ) {
+      game.waveIntroActive = true;
+      player.startTakeoffIntro(() => {
+        game.waveIntroActive = false;
+        beginDialogAndSpawn();
+      });
+      return;
+    }
+
+    game.waveIntroActive = false;
+    beginDialogAndSpawn();
   },
   
   spawnWaveEnemies(wave) {
