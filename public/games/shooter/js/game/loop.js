@@ -25,6 +25,7 @@ import { WaveSystem } from '../systems/waves.js';
 import { ShopSystem } from '../systems/shop.js';
 import { HudSystem } from '../systems/hud.js';
 import { GameOverSystem } from '../systems/gameover.js';
+import { MenuSystem } from '../systems/menu.js';
 // Collision helpers: ./collisions.js (aabbOverlap, distSq)
 
 // ============================================
@@ -74,9 +75,9 @@ Object.assign(game, {
   init() {
     // Carrega save antes de resetar
     const saveData = SaveSystem.load();
-    
+
     this.reset();
-    
+
     // Aplica save carregado
     if (saveData) {
       SaveSystem.applyLoad(saveData);
@@ -87,15 +88,38 @@ Object.assign(game, {
         this.highWave = highs.highWave || 0;
       }
     }
-    
-    // Inicia o countdown antes de começar o jogo (sem mensagem na primeira wave)
-    this.isPaused = true; // Pausa durante o countdown
-    this.countdownSystem.start(() => {
-      this.isPaused = false; // Despausa quando countdown terminar
-      WaveSystem.startWave(1); // Inicia a wave 1
-    }, ""); // Sem mensagem na primeira wave
-    
+
+    // Menu primeiro — Jogar inicia a run
+    this.isPaused = true;
+    MenuSystem.show();
     this.loop(0);
+  },
+
+  /** Sai do menu e começa a partida (countdown → wave 1). */
+  startFromMenu() {
+    MenuSystem.hide();
+    this.gameOver = false;
+    GameOverSystem.hide();
+    this.reset();
+    this.isPaused = true;
+    this.countdownSystem.start(() => {
+      this.isPaused = false;
+      WaveSystem.startWave(1);
+    }, "");
+  },
+
+  /** Volta ao menu a partir do Game Over (botão MENU). */
+  returnToMenu() {
+    GameOverSystem.hide();
+    this.gameOver = false;
+    WaveSystem.reset();
+    this.enemies = [];
+    this.tanks = [];
+    this.projectiles = [];
+    this.enemyProjectiles = [];
+    this.bossActive = false;
+    this.isPaused = true;
+    MenuSystem.show();
   },
 
   handleGameOver() {
@@ -209,6 +233,11 @@ Object.assign(game, {
   },
 
   update() {
+    if (MenuSystem.active) {
+      MenuSystem.update();
+      return;
+    }
+
     if (this.gameOver) return;
     
       // Não atualiza o jogo se o player está morrendo
@@ -645,6 +674,12 @@ Object.assign(game, {
 
   draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (MenuSystem.active) {
+      MenuSystem.draw(ctx);
+      return;
+    }
+
     this.drawBackground();
     
     // Desenha player normal ou animação de morte
@@ -726,9 +761,16 @@ Object.assign(game, {
 
     if (this.miniBoss) this.miniBoss.draw();
     game.particles.forEach((p) => p.draw(ctx));
-    if (!this.player.airborne && !this.gameOver) {
+    if (!this.player.airborne && !this.gameOver && !MenuSystem.active) {
+      const L = HudSystem.layout || HudSystem.computeLayout();
+      const tipY = (L.weapon?.y ?? 0) + (L.weapon?.h ?? 0) + 22;
       ctx.font = "16px Arial";
-      ctx.fillText("Pressione espaço para voar", 20, 80);
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#ff9800";
+      ctx.strokeStyle = "#000";
+      ctx.lineWidth = 3;
+      ctx.strokeText("Pressione espaço para voar", 20, tipY);
+      ctx.fillText("Pressione espaço para voar", 20, tipY);
     }
 
     if (this.gameOver) {
@@ -797,6 +839,8 @@ Object.assign(game, {
         // Atualiza partículas de explosão
         game.particles = game.particles.filter((p) => !p.dead);
         game.particles.forEach((p) => p.update());
+      } else if (MenuSystem.active) {
+        this.update();
       } else if (this.waveIntroActive && !this.gameOver) {
         // Decolagem no início da wave (roda mesmo com lógica de pause lateral)
         this.update();

@@ -215,10 +215,12 @@ const GameOverSystem = {
       return true;
     }
 
-    if (this.hit(L.retry, canvasX, canvasY) || this.hit(L.menu, canvasX, canvasY)) {
-      if (typeof game.restartRun === 'function') {
-        game.restartRun();
-      }
+    if (this.hit(L.retry, canvasX, canvasY)) {
+      if (typeof game.restartRun === 'function') game.restartRun();
+      return true;
+    }
+    if (this.hit(L.menu, canvasX, canvasY)) {
+      if (typeof game.returnToMenu === 'function') game.returnToMenu();
       return true;
     }
     return false;

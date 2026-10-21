@@ -109,6 +109,35 @@
     <!-- Botão flutuante da loja -->
     <div id="shopButton" style="display: none;">💰</div>
     
+    <!-- Modal de configurações -->
+    <div id="settingsModal">
+      <div id="settingsContent">
+        <button id="closeSettings" type="button">✕</button>
+        <h2>⚙️ CONFIGURAÇÕES</h2>
+
+        <div class="settingsSection">
+          <h3>Controle</h3>
+          <div class="settingsControlRow">
+            <button type="button" class="settingsModeBtn" id="settingsControlPlane">✈️ Avião</button>
+            <button type="button" class="settingsModeBtn" id="settingsControlHeli">🚁 Helicóptero</button>
+          </div>
+          <p class="settingsHint">Também pode alternar com a tecla M durante o jogo.</p>
+        </div>
+
+        <div class="settingsSection">
+          <h3>Áudio</h3>
+          <label class="settingsLabel" for="settingsVolume">
+            Volume: <span id="settingsVolumeValue">70%</span>
+          </label>
+          <input type="range" id="settingsVolume" min="0" max="100" value="70" />
+          <label class="settingsMuteLabel">
+            <input type="checkbox" id="settingsMute" />
+            Mudo
+          </label>
+        </div>
+      </div>
+    </div>
+
     <!-- Modal da loja -->
     <div id="shopModal">
       <div id="shopContent">

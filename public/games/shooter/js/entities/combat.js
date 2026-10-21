@@ -2249,19 +2249,26 @@ function createEnemy(x, y, type = 'basic', overrides = {}) {
   const config = {
     ...baseConfig,
     ...restOverrides,
-    movement: { ...baseConfig.movement, ...(restOverrides.movement || {}) },
-    weapon: { ...baseConfig.weapon, ...(restOverrides.weapon || {}) },
-    flames: restOverrides.flames !== undefined
-      ? restOverrides.flames
-      : baseConfig.flames
+    movement:
+      restOverrides.movement === false
+        ? false
+        : { ...baseConfig.movement, ...(restOverrides.movement || {}) },
+    weapon:
+      restOverrides.weapon === false
+        ? false
+        : { ...baseConfig.weapon, ...(restOverrides.weapon || {}) },
+    flames:
+      restOverrides.flames !== undefined
+        ? restOverrides.flames
+        : baseConfig.flames,
   };
 
   // Escalada leve por wave (track ↑ / cooldown ↓), cap ~1.3
   const scale = getWaveAiScale(waveNumber);
-  if (config.movement?.trackPlayer) {
+  if (config.movement && config.movement.trackPlayer) {
     config.movement.trackPlayer = Math.min(0.55, config.movement.trackPlayer * scale);
   }
-  if (config.weapon) {
+  if (config.weapon && typeof config.weapon === 'object') {
     if (config.weapon.cooldownMin != null) {
       config.weapon.cooldownMin = Math.max(
         35,
@@ -2279,10 +2286,10 @@ function createEnemy(x, y, type = 'basic', overrides = {}) {
   const enemy = new EnemyComposed(x, y, config);
   clampEnemyY(enemy);
 
-  if (config.weaponType === 'triple') {
+  if (config.weapon !== false && config.weaponType === 'triple') {
     enemy.components = enemy.components.filter((c) => !(c instanceof WeaponComponent));
     enemy.components.push(new TripleWeaponComponent(config.weapon));
-  } else if (config.weaponType === 'sniper') {
+  } else if (config.weapon !== false && config.weaponType === 'sniper') {
     enemy.components = enemy.components.filter((c) => !(c instanceof WeaponComponent));
     enemy.components.push(new SniperWeaponComponent(config.weapon));
   }

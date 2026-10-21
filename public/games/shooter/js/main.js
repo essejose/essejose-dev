@@ -5,6 +5,8 @@ import { game } from "./game/state.js";
 import { ShopSystem, DialogSystem, DevTools } from "./legacy/gameplay.js";
 import { HudSystem } from "./systems/hud.js";
 import { GameOverSystem } from "./systems/gameover.js";
+import { MenuSystem } from "./systems/menu.js";
+import { SettingsSystem } from "./systems/settings.js";
 
 initCanvas();
 initInput();
@@ -14,8 +16,12 @@ window.game = game;
 window.ShopSystem = ShopSystem;
 window.DialogSystem = DialogSystem;
 window.DevTools = DevTools;
+window.SettingsSystem = SettingsSystem;
+window.MenuSystem = MenuSystem;
 
 loadImages(ASSETS, () => {
+  SettingsSystem.init();
+  MenuSystem.init();
   game.init();
   ShopSystem.init();
   DialogSystem.init();

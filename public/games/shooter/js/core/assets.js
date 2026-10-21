@@ -28,6 +28,7 @@ export const ASSETS = {
   hudCombo: "./images/hud/combo.png",
   hudGameOver: "./images/hud/game_over_panel.png",
   hudGameDie: "./images/hud/game_die_panel.png",
+  hudMenu: "./images/hud/menu.png",
 };
 
 export const IMAGES = {};

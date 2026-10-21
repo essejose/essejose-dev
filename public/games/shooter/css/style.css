@@ -42,6 +42,117 @@ canvas {
 }
 
 /* Modal da loja */
+#settingsModal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 2100;
+}
+
+#settingsModal.active {
+  display: flex;
+}
+
+#settingsContent {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border-radius: 20px;
+  padding: 28px 32px;
+  width: min(420px, 92%);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  border: 3px solid #4fc3f7;
+  position: relative;
+  color: #eee;
+  font-family: system-ui, sans-serif;
+}
+
+#settingsContent h2 {
+  color: #4fc3f7;
+  text-align: center;
+  margin: 0 0 20px;
+  font-size: 26px;
+}
+
+#closeSettings {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 36px;
+  height: 36px;
+  background: #ff4444;
+  border: none;
+  border-radius: 50%;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.settingsSection {
+  margin-bottom: 22px;
+}
+
+.settingsSection h3 {
+  margin: 0 0 10px;
+  color: #90caf9;
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.settingsControlRow {
+  display: flex;
+  gap: 10px;
+}
+
+.settingsModeBtn {
+  flex: 1;
+  padding: 12px 10px;
+  border-radius: 10px;
+  border: 2px solid #455a64;
+  background: rgba(255, 255, 255, 0.06);
+  color: #ccc;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.settingsModeBtn.active {
+  border-color: #ffd54f;
+  background: rgba(255, 213, 79, 0.2);
+  color: #fff;
+}
+
+.settingsHint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #8899aa;
+}
+
+.settingsLabel {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+#settingsVolume {
+  width: 100%;
+  accent-color: #4fc3f7;
+}
+
+.settingsMuteLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
 #shopModal {
   position: fixed;
   top: 0;
