@@ -6,6 +6,7 @@ export const ASSETS = {
   inimigo4: "./images/inimigos/inimigo4.png",
   inimigo5: "./images/inimigos/inimigo5.png",
   tank: "./images/inimigos/tank.png",
+  chefe: "./images/inimigos/chefe.png",
   footprint: "./images/parallax-3/footprint.png",
   grass: "https://placehold.co/20x20/418753/000?text=-",
   health: "https://placehold.co/20x20/ff66cc/000?text=H",

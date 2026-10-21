@@ -279,7 +279,9 @@ Object.assign(game, {
     // }
     this.enemies = this.enemies.filter(
       (e) =>
-        e.x + e.width > 0 && e.y + e.height > 0 && e.y < canvas.height
+        !e.dead &&
+        (e.isDying ||
+          (e.x + e.width > 0 && e.y + e.height > 0 && e.y < canvas.height))
     );
 
     this.tanks.forEach((t) => t.update());
@@ -334,6 +336,9 @@ Object.assign(game, {
 
     this.projectiles.forEach((p, pi) => {
       this.enemies.forEach((e, ei) => {
+        if (e.isDying || e.dead) return;
+        // MiniBoss tem colisão dedicada abaixo
+        if (e instanceof MiniBoss) return;
         const hit =
           p.x < e.x + e.width &&
           p.x + p.width > e.x &&
@@ -475,6 +480,7 @@ Object.assign(game, {
       ...this.tanks,
       ...(this.miniBoss ? [this.miniBoss] : []),
     ].forEach((e) => {
+      if (e.isDying || e.dead) return;
       const hit =
         this.player.x < e.x + e.width &&
         this.player.x + this.player.width > e.x &&
@@ -550,32 +556,33 @@ Object.assign(game, {
     // e não devem limpar os outros inimigos
     
     // Verifica se há MiniBoss no array de enemies (do novo sistema)
-    const miniBossInEnemies = this.enemies.find(e => e instanceof MiniBoss);
-    
+    const miniBossInEnemies = this.enemies.find(
+      (e) => e instanceof MiniBoss && !e.dead
+    );
+
     if (miniBossInEnemies) {
-      // Marca que há boss ativo para o sistema de waves
+      // Marca que há boss ativo para o sistema de waves (inclui queda)
       this.bossActive = true;
-      
-      // Processa colisões com projéteis do player
-      this.projectiles.forEach((p, pi) => {
-        const b = miniBossInEnemies;
-        const hit =
-          p.x < b.x + b.width &&
-          p.x + p.width > b.x &&
-          p.y < b.y + b.height &&
-          p.y + p.height > b.y;
-        if (hit) {
-          HitEffectManager.spawnEffect(p.x, p.y, b.hitEffect, 1.5);
-          // Passa coordenadas do projétil para calcular knockback (se o boss suportar)
-          b.takeDamage(p.damage, p.x + p.width / 2, p.y + p.height / 2);
-          this.projectiles.splice(pi, 1);
-          this.damageTexts.push(
-            new DamageText(b.x, b.y, "-" + p.damage.toFixed(2), "orange")
-          );
-        }
-      });
+
+      if (!miniBossInEnemies.isDying) {
+        this.projectiles.forEach((p, pi) => {
+          const b = miniBossInEnemies;
+          const hit =
+            p.x < b.x + b.width &&
+            p.x + p.width > b.x &&
+            p.y < b.y + b.height &&
+            p.y + p.height > b.y;
+          if (hit) {
+            HitEffectManager.spawnEffect(p.x, p.y, b.hitEffect, 1.5);
+            b.takeDamage(p.damage, p.x + p.width / 2, p.y + p.height / 2);
+            this.projectiles.splice(pi, 1);
+            this.damageTexts.push(
+              new DamageText(b.x, b.y, "-" + p.damage.toFixed(2), "orange")
+            );
+          }
+        });
+      }
     } else {
-      // Se não há boss, desativa a flag
       this.bossActive = false;
     }
 

@@ -2268,7 +2268,7 @@ class MiniBoss {
   constructor(x, y) {
     this.x = x;
     this.y = y;
-    this.width = 120;
+    this.width = 160;
     this.height = 80;
     this.maxHealth = 50;
     this.health = 50;
@@ -2278,33 +2278,163 @@ class MiniBoss {
     this.dead = false;
     this.dodgeCooldown = 0;
     this.evadeDirection = 0;
+
+    // Hardpoints (sprite olhando à esquerda)
+    this.muzzles = {
+      nose: { x: 0.05, y: 0.55 },
+      top: { x: 0.45, y: 0.20 },
+      belly1: { x: 0.35, y: 0.85 },
+      belly2: { x: 0.55, y: 0.85 },
+    };
+    this.secondaryOrder = ['top', 'belly1', 'belly2'];
+    this.fireIndex = 0;
+
+    // Fogo contínuo nos motores traseiros (direita do box)
+    this.flames = new FlameEmitter({
+      spawnRate: 2,
+      particleCount: [3, 5],
+      offsetX: -22, // puxa o fogo para os thrusters (dentro da traseira do sprite)
+      offsetY: this.height * 0.05,
+    });
+
+    // Fumaça a partir de 50% de vida
+    this.smokeParticles = [];
+    this.smokeTimer = 0;
+
+    // Animação de morte (queda + explosão)
+    this.isDying = false;
+    this.deathTimer = 0;
+    this.deathVelocity = 0;
+    this.deathRotation = 0;
+    this.deathRotationSpeed = 0;
+    this.exploded = false;
+    this.deathRewardsGiven = false;
+  }
+
+  muzzlePos(key) {
+    const m = this.muzzles[key];
+    return {
+      x: this.x + this.width * m.x,
+      y: this.y + this.height * m.y,
+    };
+  }
+
+  fireNoseTriple() {
+    const { x, y } = this.muzzlePos('nose');
+    const speed = 5;
+    for (let i = -1; i <= 1; i++) {
+      const angle = i * 0.2;
+      const vx = Math.cos(angle) * -speed;
+      const vy = Math.sin(angle) * speed;
+      game.enemyProjectiles.push(new MiniBossProjectile(x, y, vx, vy));
+    }
+  }
+
+  fireSecondaryNormal() {
+    const key = this.secondaryOrder[this.fireIndex % this.secondaryOrder.length];
+    const { x, y } = this.muzzlePos(key);
+    const speed = 5;
+    game.enemyProjectiles.push(new MiniBossProjectile(x, y, -speed, 0));
+    this.fireIndex = (this.fireIndex + 1) % this.secondaryOrder.length;
+  }
+
+  startDeath() {
+    if (this.isDying) return;
+    this.isDying = true;
+    this.health = 0;
+    this.deathTimer = 0;
+    this.deathVelocity = -2.5;
+    this.deathRotation = 0;
+    this.deathRotationSpeed = 0.08;
+    this.exploded = false;
+    this.deathRewardsGiven = false;
+    game.damageTexts.push(
+      new DamageText(this.x, this.y - 20, "Boss Defeated!", "red")
+    );
+  }
+
+  giveDeathRewards() {
+    if (this.deathRewardsGiven) return;
+    this.deathRewardsGiven = true;
+
+    for (let i = 0; i < 10 && game.coinsDropped.length < MAX_COINS_ON_SCREEN; i++) {
+      const offsetX = (Math.random() - 0.5) * 80;
+      const offsetY = (Math.random() - 0.5) * 40;
+      game.coinsDropped.push(
+        new CoinDrop(this.x + this.width / 2 + offsetX, this.y + offsetY, 5)
+      );
+    }
+    game.powerUps.push(new PowerUp(this.x - 30, this.y));
+    game.powerUps.push(new PowerUp(this.x + 30, this.y));
+
+    if (game.comboSystem) {
+      game.comboSystem.addKill();
+      const points = Math.floor(100 * (game.comboSystem.multiplier || 1));
+      game.score += points;
+      game.damageTexts.push(
+        new DamageText(this.x, this.y - 40, `+${points}`, "yellow")
+      );
+    }
+  }
+
+  updateDeath() {
+    this.deathTimer++;
+    this.deathVelocity += 0.35;
+    this.y += this.deathVelocity;
+    this.x -= 1.5;
+    this.deathRotation += this.deathRotationSpeed;
+    this.deathRotationSpeed += 0.004;
+
+    // Fumaça intensa na queda
+    if (this.deathTimer % 2 === 0) {
+      const smokeX = this.x + this.width / 2 + (Math.random() - 0.5) * 40;
+      const smokeY = this.y + this.height / 2 + (Math.random() - 0.5) * 30;
+      this.smokeParticles.push(new SmokeParticle(smokeX, smokeY));
+    }
+    this.flames.update(this);
+    this.smokeParticles.forEach((p) => p.update());
+    this.smokeParticles = this.smokeParticles.filter((p) => !p.dead);
+
+    const groundY = canvas.height - canvas.height * 0.1;
+    if (this.y + this.height >= groundY && !this.exploded) {
+      this.exploded = true;
+      this.y = groundY - this.height;
+      createExplosion(this.x + this.width / 2, groundY, 2.2, 40);
+      createExplosion(this.x + this.width * 0.3, groundY - 10, 1.4, 25);
+      createExplosion(this.x + this.width * 0.7, groundY - 10, 1.4, 25);
+      this.giveDeathRewards();
+      this.deathTimer = 0;
+    }
+
+    if (this.exploded && this.deathTimer > 45) {
+      this.dead = true;
+    }
   }
 
   update() {
+    if (this.isDying) {
+      this.updateDeath();
+      return;
+    }
+
     const player = game.player;
-    const targetX = 400; // posição que o miniboss tenta manter
+    const targetX = 400;
     const dodgeRange = 100;
     const dodgeIntensity = 3;
 
-    // Inicializa variáveis de controle (se ainda não tiverem)
     if (this.dodgeCooldown === undefined) this.dodgeCooldown = 0;
     if (this.evadeDirection === undefined) this.evadeDirection = 0;
 
-    // 🟦 Movimento horizontal inteligente
-    const buffer = 30; // margem de segurança entre o player e o miniboss
-    // const targetX = 400;
+    const buffer = 30;
 
     if (player.x > this.x + buffer) {
-      // Player passou do miniboss → miniboss recua
       this.x += 1.5;
     } else if (this.x > targetX + 5) {
-      // Retorna suavemente para a posição padrão
       this.x -= 1;
     } else if (this.x < targetX - 5) {
       this.x += 1;
     }
 
-    // 🟥 Evasão de projéteis
     if (this.dodgeCooldown <= 0) {
       for (let p of game.projectiles) {
         const closeX =
@@ -2321,11 +2451,9 @@ class MiniBoss {
       this.dodgeCooldown--;
     }
 
-    // Aplica evasiva suavizada
     this.y += this.evadeDirection * dodgeIntensity;
     this.evadeDirection *= 0.9;
 
-    // 🟨 Segue levemente o player se não estiver esquivando
     if (Math.abs(this.evadeDirection) < 0.1) {
       const dy = (player.y - this.y) * 0.02;
       this.y += dy;
@@ -2333,61 +2461,78 @@ class MiniBoss {
 
     clampEnemyY(this, 0);
 
-    // 🔺 Ataque padrão
+    // Fogo contínuo nos motores
+    this.flames.update(this);
+
+    // Fumaça quando vida <= 50%
+    const healthPercent = this.health / this.maxHealth;
+    if (healthPercent <= 0.5 && healthPercent > 0) {
+      this.smokeTimer++;
+      const smokeFrequency = healthPercent <= 0.25 ? 3 : 6;
+      if (this.smokeTimer >= smokeFrequency) {
+        const smokeX = this.x + this.width * 0.9;
+        const smokeY = this.y + this.height * 0.55 + (Math.random() - 0.5) * 16;
+        this.smokeParticles.push(new SmokeParticle(smokeX, smokeY));
+        this.smokeTimer = 0;
+      }
+    }
+    this.smokeParticles.forEach((p) => p.update());
+    this.smokeParticles = this.smokeParticles.filter((p) => !p.dead);
+
+    // Ataque: triplo na ponta + 1 secundário alternado
     this.cooldown--;
     if (this.cooldown <= 0) {
-      for (let i = -1; i <= 1; i++) {
-        const angle = i * 0.2;
-        const speed = 5;
-        const vx = Math.cos(angle) * -speed;
-        const vy = Math.sin(angle) * speed;
-        game.enemyProjectiles.push(
-          new MiniBossProjectile(this.x, this.y + this.height / 2, vx, vy)
-        );
-      }
+      this.fireNoseTriple();
+      this.fireSecondaryNormal();
       this.cooldown = 90;
     }
   }
 
   draw() {
-    ctx.fillStyle = "#880000";
-    ctx.fillRect(this.x, this.y, this.width, this.height);
+    // Fogo + fumaça atrás do sprite
+    this.flames.draw();
+    this.smokeParticles.forEach((p) => p.draw(ctx));
 
-    ctx.fillStyle = "black";
-    ctx.fillRect(this.x, this.y - 10, this.width, 6);
-    ctx.fillStyle = "red";
-    ctx.fillRect(
-      this.x,
-      this.y - 10,
-      this.width * (this.health / this.maxHealth),
-      6
-    );
+    // Após explosão no chão, só partículas
+    if (this.isDying && this.exploded) return;
+
+    ctx.save();
+    if (this.isDying) {
+      const cx = this.x + this.width / 2;
+      const cy = this.y + this.height / 2;
+      ctx.translate(cx, cy);
+      ctx.rotate(this.deathRotation);
+      ctx.translate(-cx, -cy);
+      if (Math.floor(this.deathTimer / 3) % 2 === 0) ctx.globalAlpha = 0.85;
+    }
+
+    if (IMAGES.chefe && IMAGES.chefe.complete && IMAGES.chefe.naturalWidth) {
+      ctx.drawImage(IMAGES.chefe, this.x, this.y, this.width, this.height);
+    } else {
+      ctx.fillStyle = "#880000";
+      ctx.fillRect(this.x, this.y, this.width, this.height);
+    }
+    ctx.restore();
+
+    if (!this.isDying) {
+      ctx.fillStyle = "black";
+      ctx.fillRect(this.x, this.y - 10, this.width, 6);
+      ctx.fillStyle = "red";
+      ctx.fillRect(
+        this.x,
+        this.y - 10,
+        this.width * (this.health / this.maxHealth),
+        6
+      );
+    }
   }
 
   takeDamage(dmg) {
+    if (this.isDying || this.dead) return false;
     this.health -= dmg;
     if (this.health <= 0) {
-      this.dead = true;
-      game.damageTexts.push(
-        new DamageText(this.x, this.y, "Boss Defeated!", "red")
-      );
-      // DESABILITADO: Boss agora dropa moedas ao invés de powerup
-      // game.powerUps.push(
-      //   new DropInstance(this.x, this.y, DropTypes.RAPID)
-      // );
-      
-      // Boss dropa muitas moedas
-      for (let i = 0; i < 10 && game.coinsDropped.length < MAX_COINS_ON_SCREEN; i++) {
-        const offsetX = (Math.random() - 0.5) * 80;
-        const offsetY = (Math.random() - 0.5) * 80;
-        game.coinsDropped.push(new CoinDrop(this.x + offsetX, this.y + offsetY, 5));
-      }
-      
-      // Boss sempre dropa 2 vidas
-      game.powerUps.push(new PowerUp(this.x - 30, this.y));
-      game.powerUps.push(new PowerUp(this.x + 30, this.y));
-      
-      return true;
+      this.startDeath();
+      return false; // mantém no array para animação de queda
     }
     return false;
   }
