@@ -390,7 +390,7 @@ canvas {
   bottom: 0;
   transform: scale(.6);
 
-  bottom: -20%;
+  bottom: -10%;
   bottom: 0;
   width: 100%;
   /* width: 100%;
@@ -406,6 +406,7 @@ canvas {
 
 #dialogModal.active {
   display: flex;
+  align-items: center;
 }
 
 @keyframes fadeIn {

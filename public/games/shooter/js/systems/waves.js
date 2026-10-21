@@ -4,7 +4,15 @@ import { keys, controlMode, CONTROLSMODES } from '../core/input.js';
 import { ParallaxLayer } from '../core/parallax.js';
 import { game } from '../game/state.js';
 
-import { createEnemy, MiniBoss, Tank, DiveEnemy, spawnDroneFormation, spawnArrowFormationGeneric } from '../entities/combat.js';
+import {
+  createEnemy,
+  MiniBoss,
+  Tank,
+  DiveEnemy,
+  spawnDroneFormation,
+  spawnArrowFormationGeneric,
+  randomEnemyY,
+} from '../entities/combat.js';
 import { DialogSystem } from './dialog.js';
 import { ShopSystem } from './shop.js';
 
@@ -304,7 +312,7 @@ const WaveSystem = {
           } else {
             // Spawn individual baseado no tipo especificado
             const x = canvas.width + 50 + Math.random() * 100;
-            const y = 50 + Math.random() * (canvas.height * 0.6);
+            const y = randomEnemyY();
             game.enemies.push(createEnemy(x, y, type));
             WaveSystem.hasSpawned = true;
           }
@@ -393,10 +401,7 @@ const WaveSystem = {
 function novoInimigoAleatorio() {
   const tipo = Math.random();
   const x = canvas.width + Math.random() * 400;
-
-  const groundHeight = canvas.height * 0.1;
-  const yMax = canvas.height - groundHeight - 50;
-  const y = Math.random() * yMax;
+  const y = randomEnemyY();
 
   if (tipo < 0.2) return [createEnemy(x, y, 'bomber')];
   if (tipo < 0.4)

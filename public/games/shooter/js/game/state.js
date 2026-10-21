@@ -10,6 +10,7 @@ export const game = {
   powerUps: [],
   coinsDropped: [],
   grassXs: [],
+  footprintX: 0,
   parallaxLayers: [],
   comboSystem: null,
   countdownSystem: null,

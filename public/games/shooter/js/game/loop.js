@@ -41,6 +41,7 @@ Object.assign(game, {
   powerUps: [],
   coinsDropped: [],
   grassXs: [],
+  footprintX: 0,
   parallaxLayers: [],
   comboSystem: new ComboSystem(),
   countdownSystem: new CountdownSystem(),
@@ -179,6 +180,7 @@ Object.assign(game, {
       { length: Math.ceil(canvas.width / 20) + 2 },
       (_, i) => i * 20
     );
+    this.footprintX = 0;
     this.score = 0;
     this.gameOver = false;
     this.gameOverEventSent = false;
@@ -584,7 +586,16 @@ Object.assign(game, {
       // Move o parallax
       this.parallaxLayers.forEach(layer => layer.update());
       
-      // Move o chão
+      // Move o chão (footprint / estrada)
+      const fp = IMAGES.footprint;
+      const groundH = canvas.height * 0.1;
+      const tileW =
+        fp?.naturalWidth && fp.naturalHeight
+          ? (fp.naturalWidth / fp.naturalHeight) * groundH
+          : 200;
+      this.footprintX -= 1.5;
+      if (this.footprintX <= -tileW) this.footprintX += tileW;
+
       this.grassXs = this.grassXs.map((x) => {
         x -= 1;
         if (x < -20) x = canvas.width;
@@ -734,16 +745,22 @@ Object.assign(game, {
     // Desenha camadas de parallax (da mais distante para a mais próxima)
     this.parallaxLayers.forEach(layer => layer.draw(ctx));
 
-    // Desenha o chão
-    const groundY = canvas.height - canvas.height * 0.1;
-    const grassY = groundY - 20;
-    ctx.fillStyle = "#8b5237";
-    ctx.fillRect(0, groundY, canvas.width, canvas.height * 0.1);
-    
-    // Grama (fill local — evita placehold.co a cada tile)
-    ctx.fillStyle = "#418753";
-    for (let x of this.grassXs) {
-      ctx.fillRect(x, grassY, 18, 10);
+    // Chão com footprint (estrada) em tile horizontal
+    const groundH = canvas.height * 0.1;
+    const groundY = canvas.height - groundH;
+    const fp = IMAGES.footprint;
+
+    if (fp && fp.complete && fp.naturalWidth) {
+      const tileW = (fp.naturalWidth / fp.naturalHeight) * groundH;
+      let x = this.footprintX;
+      // Garante cobertura completa da tela
+      while (x > 0) x -= tileW;
+      for (; x < canvas.width + tileW; x += tileW) {
+        ctx.drawImage(fp, x, groundY, tileW, groundH);
+      }
+    } else {
+      ctx.fillStyle = "#3a3a3a";
+      ctx.fillRect(0, groundY, canvas.width, groundH);
     }
   },
 

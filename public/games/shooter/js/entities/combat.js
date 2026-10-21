@@ -7,6 +7,41 @@ import { game } from '../game/state.js';
 // Sistema de Moedas
 const MAX_COINS_ON_SCREEN = 50; // Limite máximo de moedas na tela
 
+/**
+ * Topo do playfield — abaixo da faixa do HUD (score / wave / shop).
+ * Evita inimigos voando atrás dos painéis.
+ */
+function getPlayfieldTop() {
+  const s = Math.min(0.72, Math.max(0.38, canvas.width / 1600));
+  const pad = Math.max(10, 16 * s);
+  const hudStrip = Math.max(125 * s, 100 * 0.88 * s, 92 * s);
+  return pad + hudStrip + 18;
+}
+
+function getPlayfieldBottom(enemyHeight = 50) {
+  return canvas.height - canvas.height * 0.1 - enemyHeight - 8;
+}
+
+/** Mantém inimigo dentro da área jogável (abaixo do HUD, acima do chão). */
+function clampEnemyY(entity, wobblePad = 16) {
+  const minY = getPlayfieldTop() + wobblePad;
+  const maxY = getPlayfieldBottom(entity.height || 50);
+  if (entity.y < minY) entity.y = minY;
+  if (entity.y > maxY) entity.y = maxY;
+  if (typeof entity.baseY === 'number') {
+    if (entity.baseY < minY) entity.baseY = minY;
+    if (entity.baseY > maxY) entity.baseY = maxY;
+  }
+}
+
+/** Y aleatório seguro para spawn de inimigos voadores. */
+function randomEnemyY(enemyHeight = 50) {
+  const minY = getPlayfieldTop() + 20;
+  const maxY = getPlayfieldBottom(enemyHeight);
+  if (maxY <= minY) return minY;
+  return minY + Math.random() * (maxY - minY);
+}
+
 class CoinDrop {
   constructor(x, y, value = 1) {
     this.x = x;
@@ -755,6 +790,8 @@ class Player {
     this.y = canvas.height * 0.5;
     this.width = 80;
     this.height = 80;
+    /** Compensa padding do sprite e alinha o pouso ao nível do tank na estrada. */
+    this.landingSink = 28;
     this.velocity = 0;
     this.gravity = 0.3;
     this.lift = -0.6;
@@ -1139,6 +1176,12 @@ class Player {
     }
   }
 
+  /** Y máximo de pouso — mesmo nível visual do tank no footprint. */
+  getLandingY() {
+    const groundTop = canvas.height - canvas.height * 0.1;
+    return groundTop - this.height + this.landingSink;
+  }
+
   update() {
     // Aplica knockback
     if (this.knockbackX !== 0 || this.knockbackY !== 0) {
@@ -1213,7 +1256,7 @@ class Player {
       this.velocity += this.gravity;
       this.y += this.velocity;
 
-      const groundY = canvas.height - this.height - canvas.height * 0.1;
+      const groundY = this.getLandingY();
       if (this.y >= groundY) {
         this.y = groundY;
         this.velocity = 0;
@@ -1250,7 +1293,7 @@ class Player {
       if (keys["ArrowLeft"] || keys["KeyA"]) this.x -= speed;
       if (keys["ArrowRight"] || keys["KeyD"]) this.x += speed;
 
-      const groundY = canvas.height - this.height - canvas.height * 0.1;
+      const groundY = this.getLandingY();
       if (this.y >= groundY) this.y = groundY;
       if (this.y < 0) this.y = 0;
       if (this.x < 0) this.x = 0;
@@ -2028,7 +2071,8 @@ function createEnemy(x, y, type = 'basic', overrides = {}) {
   const config = { ...baseConfig, ...overrides };
   
   const enemy = new EnemyComposed(x, y, config);
-  
+  clampEnemyY(enemy);
+
   // Adiciona arma customizada se necessário
   if (config.weaponType === 'triple') {
     // Remove arma padrão e adiciona tripla
@@ -2165,6 +2209,9 @@ class EnemyComposed {
     this.components.forEach(component => {
       if (component.update) component.update(this);
     });
+
+    // Não sobe para trás do HUD
+    clampEnemyY(this);
   }
   
   draw() {
@@ -2283,6 +2330,8 @@ class MiniBoss {
       const dy = (player.y - this.y) * 0.02;
       this.y += dy;
     }
+
+    clampEnemyY(this, 0);
 
     // 🔺 Ataque padrão
     this.cooldown--;
@@ -2661,6 +2710,8 @@ let DiveEnemy = class DiveEnemy {
       this.y -= this.exitSpeed;
       this.x -= this.speed * 0.5;
     }
+
+    clampEnemyY(this, 0);
   }
 
   draw() {
@@ -2692,7 +2743,10 @@ function dropOnEnemyDeath(enemy) {
 
 function spawnDroneFormation(size = 3) {
   const baseX = canvas.width + 50;
-  const baseY = 50 + Math.random() * (canvas.height - 200);
+  const formationExtra = (size - 1) * 30;
+  const minY = getPlayfieldTop() + 20;
+  const maxY = getPlayfieldBottom(50) - formationExtra;
+  const baseY = minY + Math.random() * Math.max(1, maxY - minY);
   const drones = [];
 
   for (let i = 0; i < size; i++) {
@@ -2700,7 +2754,7 @@ function spawnDroneFormation(size = 3) {
     drones.push(createEnemy(baseX + i * 30, baseY + offsetY, 'drone'));
   }
 
-  return drones; // ✅ retorna array de DroneEnemy
+  return drones;
 }
 
 // ============================================
@@ -2716,16 +2770,14 @@ function spawnArrowFormationGeneric(
   const enemies = [];
   const baseX = canvas.width + 50;
 
-  const groundHeight = canvas.height * 0.1;
-  const safetyMargin = 60;
-
   // Altura total da formação vertical
   const formationHeight = (size - 1) * spacingY;
 
-  // Limites seguros
-  const minY = safetyMargin + formationHeight / 2;
-  const maxY = canvas.height - groundHeight - formationHeight / 2;
-  const centerY = minY + Math.random() * (maxY - minY);
+  // Limites seguros — abaixo do HUD
+  const minY = getPlayfieldTop() + 20 + formationHeight / 2;
+  const maxY = getPlayfieldBottom(50) - formationHeight / 2;
+  const centerY =
+    minY >= maxY ? minY : minY + Math.random() * (maxY - minY);
 
   const half = Math.floor(size / 2);
 
@@ -2876,4 +2928,8 @@ export {
   FlameEmitter,
   WeaponComponent,
   MAX_COINS_ON_SCREEN,
+  getPlayfieldTop,
+  getPlayfieldBottom,
+  clampEnemyY,
+  randomEnemyY,
 };

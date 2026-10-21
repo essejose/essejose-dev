@@ -43,7 +43,7 @@
       resizeCanvas();
       window.addEventListener("resize", resizeCanvas);
 
-      // ============================================
+      // ============================================s
       // [02] ASSETS E RECURSOS
       // ============================================
       const ASSETS = {
@@ -57,12 +57,12 @@
         footprint: "./images/parallax-2/footprint.png",
         grass: "https://placehold.co/20x20/418753/000?text=-",
         health: "https://placehold.co/20x20/ff66cc/000?text=H",
-        parallax1: "./images/parallax-2/6.png",
-        parallax2: "./images/parallax-2/5.png",
-        parallax3: "./images/parallax-2/4.png",
-        parallax4: "./images/parallax-2/3.png",
-        parallax5: "./images/parallax-2/2.png",
-        parallax6: "./images/parallax-2/1.png",
+        parallax1: "./images/parallax-3/6.png",
+        parallax2: "./images/parallax-3/5.png",
+        parallax3: "./images/parallax-3/4.png",
+        parallax4: "./images/parallax-3/3.png",
+        parallax5: "./images/parallax-3/2.png",
+        parallax6: "./images/parallax-3/1.png",
         pilot_portrait: "./images/characters/pilot_portrait.png",
         assistant: "./images/characters/pilot-2.png",
         commander: "./images/characters/commander.png",
