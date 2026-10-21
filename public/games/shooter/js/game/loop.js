@@ -24,6 +24,7 @@ import { DialogSystem } from '../systems/dialog.js';
 import { WaveSystem } from '../systems/waves.js';
 import { ShopSystem } from '../systems/shop.js';
 import { HudSystem } from '../systems/hud.js';
+import { GameOverSystem } from '../systems/gameover.js';
 // Collision helpers: ./collisions.js (aabbOverlap, distSq)
 
 // ============================================
@@ -79,6 +80,12 @@ Object.assign(game, {
     // Aplica save carregado
     if (saveData) {
       SaveSystem.applyLoad(saveData);
+    } else {
+      const highs = SaveSystem.loadHighs?.();
+      if (highs) {
+        this.highScore = highs.highScore || 0;
+        this.highWave = highs.highWave || 0;
+      }
     }
     
     // Inicia o countdown antes de começar o jogo (sem mensagem na primeira wave)
@@ -104,42 +111,49 @@ Object.assign(game, {
     }
     
     if (this.lives <= 0) {
-      // Perdeu todas as vidas - limpa save
-      DialogSystem.show({ 
+      // Game over definitivo — painel com Retry/Menu (ambos reiniciam por enquanto)
+      DialogSystem.show({
         id: 5,
         speaker: "Comandante do Exército Rival",
         paused: false,
         portrait: ASSETS.rival_commander,
-        messages: [
-          "HA HA HA!",  
-        ],
+        messages: ["HA HA HA!"],
       });
 
       SaveSystem.clear();
-      
-      // Reseta tudo para valores iniciais (inclui wave 1)
-      setTimeout(() => {
-        this.lives = 3;
-        this.coins = 0; 
-
-        localStorage.removeItem('shooter_tutorials_executed');
-        this.highScore = 0;
-        this.highWave = 0;
-        this.reset();
-        this.gameOver = false;
-        WaveSystem.reset();
-        WaveSystem.startWave(1);
-      }, 3000);
+      GameOverSystem.show();
     } else {
-      // Ainda tem vidas - salva progresso e reinicia da wave 1
+      // Ainda tem vidas — painel "VOCÊ MORREU" (clique ou auto ~2.5s)
       SaveSystem.save();
-      setTimeout(() => {
-        this.reset();
-        this.gameOver = false;
-        WaveSystem.reset();
-        WaveSystem.startWave(1);
-      }, 2000);
+      GameOverSystem.showDie();
     }
+  },
+
+  /** Continua após morte com vidas restantes. */
+  continueAfterDeath() {
+    if (!this.gameOver || this.lives <= 0) return;
+    GameOverSystem.hide();
+    this.reset();
+    this.gameOver = false;
+    WaveSystem.reset();
+    WaveSystem.startWave(1);
+  },
+
+  /** Restart completo da run (Retry / Menu do painel de game over). */
+  restartRun() {
+    this.lives = 3;
+    this.coins = 0;
+    localStorage.removeItem('shooter_tutorials_executed');
+    // Mantém highScore / highWave
+    GameOverSystem.hide();
+    this.reset();
+    this.gameOver = false;
+    WaveSystem.reset();
+    this.isPaused = true;
+    this.countdownSystem.start(() => {
+      this.isPaused = false;
+      WaveSystem.startWave(1);
+    }, "");
   },
 
   reset() {
@@ -718,51 +732,20 @@ Object.assign(game, {
     }
 
     if (this.gameOver) {
-      ctx.fillStyle = "red";
-      ctx.font = "20px Arial";
       // Envia evento para Google Tag Manager apenas uma vez
       if (!this.gameOverEventSent) {
         window.dataLayer = window.dataLayer || [];
         window.dataLayer.push({
-          'event': 'game_over',
-        'event_category': 'game',
-          'event_label': 'helicopter_shooter',
-          'game_score': this.score
-      });
+          event: "game_over",
+          event_category: "game",
+          event_label: "helicopter_shooter",
+          game_score: this.score,
+        });
         this.gameOverEventSent = true;
       }
-      // Mensagem diferente baseada nas vidas restantes
-      if (this.lives > 0) {
-        ctx.fillText(
-          `💔 VOCÊ MORREU! 💔`,
-          canvas.width / 2 - 90,
-          canvas.height / 2 - 20
-        );
-        ctx.font = "20px monospace";
-        ctx.fillText(
-          `Vidas restantes: ${this.lives}`,
-          canvas.width / 2 - 100,
-          canvas.height / 2 + 20
-        );
-      } else {
-      ctx.fillText(
-        "💥 GAME OVER 💥",
-          canvas.width / 2 - 85,
-          canvas.height / 2 - 20
-        );
-        ctx.font = "18px monospace";
-        ctx.fillStyle = "#FFD700";
-        ctx.fillText(
-          `High Score: ${this.highScore}`,
-          canvas.width / 2 - 80,
-          canvas.height / 2 + 20
-        );
-        ctx.fillText(
-          `High Wave: ${this.highWave}`,
-          canvas.width / 2 - 70,
-          canvas.height / 2 + 45
-        );
-      }
+
+      // Painel die (vidas > 0) ou game over (vidas = 0)
+      GameOverSystem.draw(ctx);
     }
   },
 

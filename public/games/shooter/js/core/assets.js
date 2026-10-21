@@ -26,6 +26,8 @@ export const ASSETS = {
   hudCoins: "./images/hud/coins.png",
   hudShop: "./images/hud/shop.png",
   hudCombo: "./images/hud/combo.png",
+  hudGameOver: "./images/hud/game_over_panel.png",
+  hudGameDie: "./images/hud/game_die_panel.png",
 };
 
 export const IMAGES = {};

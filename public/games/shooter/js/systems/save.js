@@ -13,6 +13,27 @@ import { WeaponInstance } from '../entities/combat.js';
 
 const SaveSystem = {
   SAVE_KEY: 'helicopterShooterSave',
+  HIGHS_KEY: 'helicopterShooterHighs',
+
+  saveHighs() {
+    localStorage.setItem(
+      this.HIGHS_KEY,
+      JSON.stringify({
+        highScore: game.highScore || 0,
+        highWave: game.highWave || 0,
+      })
+    );
+  },
+
+  loadHighs() {
+    try {
+      const raw = localStorage.getItem(this.HIGHS_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch (e) {
+      return null;
+    }
+  },
   
   save() {
     const saveData = {
@@ -26,6 +47,7 @@ const SaveSystem = {
     };
     
     localStorage.setItem(this.SAVE_KEY, JSON.stringify(saveData));
+    this.saveHighs();
   },
   
   load() {
@@ -41,6 +63,8 @@ const SaveSystem = {
   },
   
   clear() {
+    // Limpa progresso da run, mas mantém records
+    this.saveHighs();
     localStorage.removeItem(this.SAVE_KEY);
   },
   
@@ -50,8 +74,9 @@ const SaveSystem = {
     // Restaura moedas e vidas
     game.coins = saveData.coins || 0;
     game.lives = saveData.lives || 3;
-    game.highScore = saveData.highScore || 0;
-    game.highWave = saveData.highWave || 0;
+    const highs = this.loadHighs();
+    game.highScore = Math.max(saveData.highScore || 0, highs?.highScore || 0);
+    game.highWave = Math.max(saveData.highWave || 0, highs?.highWave || 0);
     
     // Restaura upgrades
     if (saveData.upgrades) {
