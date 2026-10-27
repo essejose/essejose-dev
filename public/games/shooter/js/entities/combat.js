@@ -2885,6 +2885,13 @@ let Tank = class Tank {
     this.cannonAngle = 0;
     this.cannonLength = 45;
 
+    // Vida + escudo (dano primeiro no shield)
+    this.maxHealth = 5;
+    this.health = this.maxHealth;
+    this.maxShield = 8;
+    this.shield = this.maxShield;
+    this.hitEffect = 'spark';
+
     // Ciclo: andar → parar → atirar → andar
     this.aiPhase = 'move'; // 'move' | 'aim' | 'fire'
     this.phaseTimer = 50 + Math.floor(Math.random() * 40);
@@ -2900,6 +2907,29 @@ let Tank = class Tank {
 
     this.smokeParticles = [];
     this.smokeSpawnCounter = 0;
+  }
+
+  takeDamage(amount = 1, _fromX = null, _fromY = null) {
+    if (this.shield > 0) {
+      const remainingDamage = amount - this.shield;
+      this.shield = Math.max(0, this.shield - amount);
+
+      if (this.shield === 0 && this.maxShield > 0) {
+        if (window.game?.damageTexts) {
+          window.game.damageTexts.push(
+            new DamageText(this.x, this.y, 'Shield Down', 'cyan')
+          );
+        }
+      }
+
+      if (remainingDamage > 0) {
+        this.health -= remainingDamage;
+      }
+    } else {
+      this.health -= amount;
+    }
+
+    return this.health <= 0;
   }
 
   drawWheel(x, y) {
@@ -2969,6 +2999,36 @@ let Tank = class Tank {
     ctx.fillRect(this.cannonLength - 5, -4, 5, 8);
     
     ctx.restore();
+
+    // Barra de escudo (sem bolha)
+    if (this.maxShield > 0) {
+      const shieldBarY = this.y - 12;
+      ctx.fillStyle = 'rgba(100, 100, 100, 0.5)';
+      ctx.fillRect(this.x, shieldBarY, this.width, 4);
+      ctx.fillStyle = 'cyan';
+      ctx.fillRect(
+        this.x,
+        shieldBarY,
+        this.width * (this.shield / this.maxShield),
+        4
+      );
+      ctx.strokeStyle = 'black';
+      ctx.strokeRect(this.x, shieldBarY, this.width, 4);
+    }
+
+    // Barra de vida
+    const healthBarY = this.y - 6;
+    ctx.fillStyle = 'gray';
+    ctx.fillRect(this.x, healthBarY, this.width, 5);
+    ctx.fillStyle = 'lime';
+    ctx.fillRect(
+      this.x,
+      healthBarY,
+      this.width * (Math.max(0, this.health) / this.maxHealth),
+      5
+    );
+    ctx.strokeStyle = 'black';
+    ctx.strokeRect(this.x, healthBarY, this.width, 5);
   }
 
   fireCannon(target) {
@@ -3280,10 +3340,10 @@ function addHealthToEnemy(cls, baseHealth = 1) {
 
 // ============================================
 // Adiciona saúde aos inimigos legados (NÃO usar para novos inimigos)
-// Inimigos criados via createEnemy() já possuem saúde integrada
+// Inimigos criados via createEnemy() já possuem saúde integrada.
+// Tank já tem health + shield + takeDamage próprios — não wrapear.
 // ============================================
 DiveEnemy = addHealthToEnemy(DiveEnemy, 2);
-Tank = addHealthToEnemy(Tank, 5);
 // DroneEnemy = addHealthToEnemy(DroneEnemy, 1); // Comentado - agora usa createEnemy('drone')
 
 
