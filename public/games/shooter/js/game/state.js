@@ -2,6 +2,7 @@
 export const game = {
   debug: false,
   devMode: false,
+  immortal: false,
   player: null,
   projectiles: [],
   enemyProjectiles: [],

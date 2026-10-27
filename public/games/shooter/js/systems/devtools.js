@@ -17,12 +17,15 @@ const DevTools = {
     const closeBtn = document.getElementById('closeDevPanel');
     closeBtn.addEventListener('click', () => this.toggleDevPanel());
     
+    this._syncImmortalBtn();
+
     // Atualiza info a cada frame
     setInterval(() => {
       if (game.devMode) {
         document.getElementById('devEnemyCount').textContent = game.enemies.length;
         document.getElementById('devProjectileCount').textContent = game.projectiles.length;
         document.getElementById('devWaveCount').textContent = WaveSystem.currentWave;
+        this._syncImmortalBtn();
       }
     }, 100);
   },
@@ -37,6 +40,22 @@ const DevTools = {
   togglePause() {
     game.isPaused = !game.isPaused;
     console.log('Game paused:', game.isPaused);
+  },
+
+  toggleImmortal() {
+    game.immortal = !game.immortal;
+    if (game.player) {
+      game.player.invincible = game.immortal || game.player.invincibilityTimer > 0;
+    }
+    this._syncImmortalBtn();
+    console.log('Imortal:', game.immortal ? 'ON' : 'OFF');
+  },
+
+  _syncImmortalBtn() {
+    const btn = document.getElementById('devImmortalBtn');
+    if (!btn) return;
+    btn.textContent = game.immortal ? '🛡️ Imortal: ON' : '🛡️ Imortal: OFF';
+    btn.style.background = game.immortal ? '#2e7d32' : '';
   },
   
   clearEnemies() {

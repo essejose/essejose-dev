@@ -9,6 +9,7 @@ import { MenuSystem } from "./systems/menu.js";
 import { SettingsSystem } from "./systems/settings.js";
 import { FullscreenPrompt } from "./systems/fullscreen.js";
 import { JoystickSystem } from "./systems/joystick.js";
+import { PerfProfiler } from "./systems/profiler.js";
 
 initCanvas();
 initInput();
@@ -23,6 +24,7 @@ window.MenuSystem = MenuSystem;
 window.GameOverSystem = GameOverSystem;
 window.HudSystem = HudSystem;
 window.JoystickSystem = JoystickSystem;
+window.PerfProfiler = PerfProfiler;
 
 loadImages(ASSETS, () => {
   SettingsSystem.init();
