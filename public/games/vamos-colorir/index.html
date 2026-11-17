@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Vamos Colorir! Um jogo infantil de colorir, com desenhos, criatividade e diversão para toda a família.">
+  <meta name="theme-color" content="#6757dc">
+  <title>Vamos Colorir! — Um mundo de cores e diversão</title>
+  <style>
+    :root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#28314a;background:#f7f7ff}
+    *{box-sizing:border-box}body{margin:0;line-height:1.65}
+    .wrap{max-width:900px;margin:auto;padding:24px}
+    header{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+    .brand{font-weight:800;color:#5949c5;text-decoration:none;font-size:1.15rem}
+    nav{display:flex;gap:18px;flex-wrap:wrap}a{color:#5949c5;text-underline-offset:3px}
+    .hero{margin:38px 0 24px;padding:clamp(28px,7vw,68px);background:#fff;border:1px solid #e7e4f8;border-radius:24px;box-shadow:0 12px 35px #32217a0b;text-align:center}
+    .symbol{font-size:3.5rem;line-height:1.3}h1{font-size:clamp(2rem,6vw,3.3rem);line-height:1.2;margin:12px 0;color:#342e75}h2{font-size:1.3rem;margin:0 0 8px}
+    .lead{font-size:1.12rem;max-width:620px;margin:0 auto 24px;color:#53617a}
+    .pill{display:inline-block;background:#eeeaff;color:#5846c5;border-radius:99px;padding:7px 15px;font-weight:700;font-size:.88rem}
+    .features{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:20px 0 32px}
+    .feature{background:#fff;border:1px solid #e7e4f8;border-radius:18px;padding:24px}
+    .feature .emoji{font-size:1.8rem}.feature p{margin:0;color:#5a6680}
+    .note{background:#f0edff;border-radius:14px;padding:18px 22px;color:#45416b}
+    footer{border-top:1px solid #e2def4;margin-top:42px;padding:24px 0;color:#66718a;font-size:.92rem;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+    footer a{margin-right:15px}@media(max-width:650px){.features{grid-template-columns:1fr}.hero{margin-top:20px}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <a class="brand" href="./">🎨 Vamos Colorir!</a>
+      <nav aria-label="Navegação"><a href="privacy-policy.html">Privacidade</a><a href="terms-of-service.html">Termos de Serviço</a></nav>
+    </header>
+    <main>
+      <section class="hero">
+        <div class="symbol" aria-hidden="true">🖍️🌈</div>
+        <span class="pill">Um jogo para pequenos artistas</span>
+        <h1>Vamos Colorir!</h1>
+        <p class="lead">Um espaço divertido para crianças explorarem cores, soltarem a imaginação e criarem suas próprias pinturas.</p>
+        <p>Descubra desenhos para colorir no seu ritmo, com uma experiência simples e pensada para toda a família.</p>
+      </section>
+      <section class="features" aria-label="O que você encontra no jogo">
+        <article class="feature"><div class="emoji" aria-hidden="true">🎨</div><h2>40 desenhos gratuitos</h2><p>Muitas opções para experimentar cores e criar pinturas diferentes.</p></article>
+        <article class="feature"><div class="emoji" aria-hidden="true">✨</div><h2>Criatividade livre</h2><p>Uma atividade leve e divertida para explorar a imaginação.</p></article>
+        <article class="feature"><div class="emoji" aria-hidden="true">🦕</div><h2>Coleção Dinossauros</h2><p>Uma coleção adicional planejada para o jogo, com compra opcional quando disponível.</p></article>
+      </section>
+      <aside class="note"><strong>Para pais e responsáveis:</strong> o jogo é destinado ao público infantil. As funcionalidades relacionadas a compras opcionais contam com uma etapa de acesso voltada aos responsáveis. Não há anúncios no aplicativo.</aside>
+    </main>
+    <footer>
+      <span>© 2026 Vamos Colorir! · <a href="https://www.essejose.dev/">essejose.dev</a></span>
+      <span><a href="privacy-policy.html">Política de Privacidade</a><a href="terms-of-service.html">Termos de Serviço</a></span>
+    </footer>
+  </div>
+</body>
+</html>
