@@ -66,9 +66,10 @@ const MenuSystem = {
     const btnW = Math.min(cw * 0.42, 320);
     const btnH = btnW * (btnNh / btnNw);
 
-    const gapLogoStart = ch * 0.045;
-    const gapStartConfig = ch * 0.018;
-    const stackH = logoH + gapLogoStart + btnH + gapStartConfig + btnH;
+    const gapLogoStart = ch * 0.035;
+    const gapBtns = ch * 0.014;
+    // logo → Campanha → Sobrevivência → Config
+    const stackH = logoH + gapLogoStart + btnH + gapBtns + btnH + gapBtns + btnH;
     let y = (ch - stackH) / 2;
 
     const logo = {
@@ -79,13 +80,23 @@ const MenuSystem = {
     };
     y += logoH + gapLogoStart;
 
-    const play = {
+    const campaign = {
       x: (cw - btnW) / 2,
       y,
       w: btnW,
       h: btnH,
+      label: 'CAMPANHA',
     };
-    y += btnH + gapStartConfig;
+    y += btnH + gapBtns;
+
+    const survival = {
+      x: (cw - btnW) / 2,
+      y,
+      w: btnW,
+      h: btnH,
+      label: 'SOBREVIVÊNCIA',
+    };
+    y += btnH + gapBtns;
 
     const settings = {
       x: (cw - btnW) / 2,
@@ -97,7 +108,10 @@ const MenuSystem = {
     this.layout = {
       panel: { x: panelX, y: panelY, w: panelW, h: panelH },
       logo,
-      play,
+      campaign,
+      survival,
+      /** @deprecated use campaign/survival */
+      play: survival,
       settings,
       sun: {
         x: panelX + panelW * 0.88,
@@ -211,6 +225,24 @@ const MenuSystem = {
     }
   },
 
+  /** Botão de modo: sprite start + rótulo (sem arte nova). */
+  drawModeButton(ctx, box) {
+    if (!box) return;
+    this.drawSprite(ctx, IMAGES.hudMenuStart, box);
+    ctx.save();
+    ctx.fillStyle = 'rgba(8, 16, 32, 0.55)';
+    ctx.fillRect(box.x, box.y, box.w, box.h);
+    ctx.strokeStyle = 'rgba(255, 220, 120, 0.85)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(box.x + 1, box.y + 1, box.w - 2, box.h - 2);
+    ctx.fillStyle = '#FFE9A8';
+    ctx.font = `bold ${Math.max(14, Math.floor(box.h * 0.32))}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(box.label || '', box.x + box.w / 2, box.y + box.h / 2);
+    ctx.restore();
+  },
+
   update() {
     if (!this.active) return;
     const L = this.layout || this.computeLayout();
@@ -254,9 +286,10 @@ const MenuSystem = {
       ctx.globalAlpha = 1;
     }
 
-    // UI por cima: logo → start → config
+    // UI por cima: logo → Campanha → Sobrevivência → config
     this.drawSprite(ctx, IMAGES.hudMenuLogo, L.logo);
-    this.drawSprite(ctx, IMAGES.hudMenuStart, L.play);
+    this.drawModeButton(ctx, L.campaign);
+    this.drawModeButton(ctx, L.survival);
     this.drawSprite(ctx, IMAGES.hudMenuConfig, L.settings);
   },
 
@@ -272,7 +305,11 @@ const MenuSystem = {
 
     const L = this.layout || this.computeLayout();
 
-    if (this.hit(L.play, canvasX, canvasY)) {
+    if (L.campaign && this.hit(L.campaign, canvasX, canvasY)) {
+      if (typeof game.openCampaign === 'function') game.openCampaign();
+      return true;
+    }
+    if (L.survival && this.hit(L.survival, canvasX, canvasY)) {
       if (typeof game.startFromMenu === 'function') game.startFromMenu();
       return true;
     }

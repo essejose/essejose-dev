@@ -2271,7 +2271,7 @@ function createEnemy(x, y, type = 'basic', overrides = {}) {
       height: 50,
       health: 2,
       shield: 0,
-      movement: { speed: 2, wobbleSpeed: 0.06, wobbleAmplitude: 15, trackPlayer: 0.15 },
+      movement: { speed: 2.7, wobbleSpeed: 0.06, wobbleAmplitude: 15, trackPlayer: 0.15 },
       flames: { spawnRate: 6, particleCount: [1, 1], maxParticles: 8 },
       weapon: { damage: 1, cooldownMin: 60, cooldownMax: 180, aimBias: 0.25 }
     },
@@ -2281,7 +2281,7 @@ function createEnemy(x, y, type = 'basic', overrides = {}) {
       height: 45,
       health: 4,
       shield: 0,
-      movement: { speed: 2.5, wobbleSpeed: 0.08, wobbleAmplitude: 10, trackPlayer: 0.35 },
+      movement: { speed: 3.97, wobbleSpeed: 0.08, wobbleAmplitude: 10, trackPlayer: 0.35 },
       flames: { spawnRate: 7, particleCount: [1, 1], maxParticles: 6 },
       weapon: { damage: 1, cooldownMin: 60, cooldownMax: 180, aimBias: 0.35 }
     },
@@ -2291,7 +2291,7 @@ function createEnemy(x, y, type = 'basic', overrides = {}) {
       height: 60,
       health: 5,
       shield: 0,
-      movement: { speed: 1.5, wobbleSpeed: 0.05, wobbleAmplitude: 22, trackPlayer: 0.12 },
+      movement: { speed: 2, wobbleSpeed: 0.05, wobbleAmplitude: 22, trackPlayer: 0.12 },
       flames: { spawnRate: 5, particleCount: [1, 2], maxParticles: 10 },
       weaponType: 'triple',
       weapon: { damage: 1, cooldownMin: 90, cooldownMax: 150, aimBias: 0.15, alignRange: 100 }
@@ -2302,7 +2302,7 @@ function createEnemy(x, y, type = 'basic', overrides = {}) {
       height: 30,
       health: 4,
       shield: 0,
-      movement: { speed: 1, wobbleSpeed: 0.03, wobbleAmplitude: 8, trackPlayer: 0.05 },
+      movement: { speed: 1.59, wobbleSpeed: 0.03, wobbleAmplitude: 8, trackPlayer: 0.05 },
       flames: { spawnRate: 8, particleCount: [1, 1], maxParticles: 6 },
       weaponType: 'sniper',
       weapon: { damage: 2, cooldownMin: 180, cooldownMax: 240 }
@@ -2314,7 +2314,7 @@ function createEnemy(x, y, type = 'basic', overrides = {}) {
       health: 6,
       shield: 5,
       movement: {
-        speed: 1.5,
+        speed: 2.38,
         wobbleSpeed: 0.04,
         wobbleAmplitude: 10,
         trackPlayer: 0.28,
@@ -2416,7 +2416,7 @@ class EnemyComposed {
     // Adiciona movimento com wobble
     if (config.movement !== false) {
       this.components.push(new WobbleMovement(config.movement || {
-        speed: 2,
+        speed: 2.7,
         wobbleSpeed: 0.06,
         wobbleAmplitude: 15
       }));
@@ -2568,7 +2568,7 @@ class MiniBoss {
     this.height = 80;
     this.maxHealth = 50;
     this.health = 50;
-    this.speed = 1;
+    this.speed = 1.59;
     this.cooldown = 90;
     this.damage = 1;
     this.dead = false;
@@ -3040,7 +3040,16 @@ let Tank = class Tank {
     this.y = canvas.height - canvas.height * 0.1 - 40;
     this.width = 80;
     this.height = 60;
-    this.speed = 1.2;
+    this.baseSpeed = 1.92;
+    this.speed = this.baseSpeed;
+    // Rush: só se o avião estiver à frente (esquerda); velocidade moderada acima do crawl
+    this.rushSpeed = 3.6;
+    this.rushTriggerDist = 220;
+    this.rushExitDist = 320;
+    this.rushFrontMargin = 50; // evita rush só por estar acima do tanque
+    this.rushLevelMargin = 70; // só rush se o avião estiver no nível vertical do tanque
+    this.rushMaxFrames = 55; // rush sempre termina
+    this.rushFrames = 0;
     this.cannonAngle = 0;
     this.cannonLength = 45;
 
@@ -3051,8 +3060,8 @@ let Tank = class Tank {
     this.shield = this.maxShield;
     this.hitEffect = 'spark';
 
-    // Ciclo: andar → parar → atirar → andar
-    this.aiPhase = 'move'; // 'move' | 'aim' | 'fire'
+    // Ciclo: andar → parar → atirar → andar (+ rush perto do player)
+    this.aiPhase = 'move'; // 'move' | 'aim' | 'fire' | 'rush'
     this.phaseTimer = 50 + Math.floor(Math.random() * 40);
     this.shotsThisStop = 0;
 
@@ -3180,43 +3189,85 @@ let Tank = class Tank {
     }
   }
 
+  _spawnExhaustSmoke(interval = 8) {
+    this.smokeSpawnCounter++;
+    if (this.smokeSpawnCounter < interval) return;
+    this.smokeSpawnCounter = 0;
+    if (this.smokeParticles.length >= TANK_MAX_SMOKE) return;
+    const exhaustX = this.x + this.width - 5;
+    const exhaustY = this.y + this.height / 2;
+    this.smokeParticles.push(new TankSmokeParticle(exhaustX, exhaustY));
+  }
+
   update() {
     const target = game.player;
     const onScreen = this.x < canvas.width - 20;
+    const tankCx = this.x + this.width / 2;
+    const playerCx = target ? target.x + target.width / 2 : 0;
+    const dx = target ? playerCx - tankCx : 0;
+    const absDx = Math.abs(dx);
 
     // Mira sempre no player
     if (target) {
-      const dx = target.x + target.width / 2 - (this.x + this.width / 2);
       const dy = target.y + target.height / 2 - (this.y + this.height / 2 - 5);
       this.cannonAngle = Math.atan2(dy, dx);
     }
 
     this.phaseTimer--;
 
+    // Frente do tanque = à esquerda (direção do movimento). Não conta “acima”.
+    const playerInFront =
+      !!target && playerCx < tankCx - this.rushFrontMargin;
+    const tankCy = this.y + this.height / 2;
+    const playerCy = target ? target.y + target.height / 2 : 0;
+    const playerAtTankLevel =
+      !!target && Math.abs(playerCy - tankCy) <= this.rushLevelMargin;
+
     if (this.aiPhase === 'move') {
-      this.x -= this.speed;
-      this.wheelRotation += this.speed * 0.15;
-
-      this.smokeSpawnCounter++;
+      // Só acelera se o avião estiver na frente, no nível do tanque e no alcance
       if (
-        this.smokeSpawnCounter >= 8 &&
-        this.smokeParticles.length < TANK_MAX_SMOKE
+        target &&
+        onScreen &&
+        playerInFront &&
+        playerAtTankLevel &&
+        absDx < this.rushTriggerDist
       ) {
-        const exhaustX = this.x + this.width - 5;
-        const exhaustY = this.y + this.height / 2;
-        this.smokeParticles.push(new TankSmokeParticle(exhaustX, exhaustY));
-        this.smokeSpawnCounter = 0;
-      } else if (this.smokeSpawnCounter >= 8) {
-        this.smokeSpawnCounter = 0;
-      }
+        this.aiPhase = 'rush';
+        this.rushFrames = 0;
+        this.phaseTimer = 0;
+      } else {
+        this.x -= this.speed;
+        this.wheelRotation += this.speed * 0.15;
+        this._spawnExhaustSmoke(8);
 
-      if (this.phaseTimer <= 0 && onScreen) {
+        if (this.phaseTimer <= 0 && onScreen) {
+          this.aiPhase = 'aim';
+          this.phaseTimer = 40 + Math.floor(Math.random() * 21); // 40–60 frames parado
+          this.shotsThisStop = 0;
+          this.maxShotsThisStop = 1 + (Math.random() < 0.35 ? 1 : 0);
+        } else if (this.phaseTimer <= 0) {
+          this.phaseTimer = 30;
+        }
+      }
+    } else if (this.aiPhase === 'rush') {
+      const rushSpeed = this.rushSpeed;
+      this.x -= rushSpeed;
+      this.wheelRotation += rushSpeed * 0.15;
+      this._spawnExhaustSmoke(4);
+      this.rushFrames++;
+
+      const passedPlayer = target && this.x + this.width < target.x - 40;
+      const lostFront = !playerInFront;
+      const lostLevel = !playerAtTankLevel;
+      const leftZone = !target || absDx > this.rushExitDist || !onScreen;
+      const timedOut = this.rushFrames >= this.rushMaxFrames;
+      if (passedPlayer || lostFront || lostLevel || leftZone || timedOut) {
+        // Fim do rush → para, mira e dá um tiro
         this.aiPhase = 'aim';
-        this.phaseTimer = 40 + Math.floor(Math.random() * 21); // 40–60 frames parado
+        this.phaseTimer = 22;
         this.shotsThisStop = 0;
-        this.maxShotsThisStop = 1 + (Math.random() < 0.35 ? 1 : 0);
-      } else if (this.phaseTimer <= 0) {
-        this.phaseTimer = 30;
+        this.maxShotsThisStop = 1;
+        this.rushFrames = 0;
       }
     } else if (this.aiPhase === 'aim') {
       // Parado — telegraph / mira
@@ -3255,10 +3306,10 @@ let DiveEnemy = class DiveEnemy {
     this.y = player.y; // Inicia na mesma altura que o player
     this.width = 60;
     this.height = 30;
-    this.speed = 5;
+    this.speed = 7.94;
     this.phase = "approaching";
-    this.attackSpeed = 6;
-    this.exitSpeed = 4;
+    this.attackSpeed = 9.26;
+    this.exitSpeed = 6.35;
     this.triggerDistance = 250;
     this.shot = false;
     this.sprite = 'inimigo4';

@@ -1,0 +1,62 @@
+{
+  "id": "mission_01",
+  "name": "Patrulha Experimental",
+  "number": 1,
+  "description": "Patrulhe o perímetro e elimine a força inimiga até o chefe final.",
+  "version": 1,
+  "scenario": { "id": "default" },
+  "objectives": {
+    "primary": [
+      {
+        "id": "kill_final_boss",
+        "type": "eliminate",
+        "tag": "miniboss_final",
+        "label": "Derrotar o chefe final"
+      }
+    ]
+  },
+  "victory": { "requirePrimary": true, "clearField": true },
+  "rewards": { "coins": 50 },
+  "events": [
+    {
+      "id": "intro_air",
+      "at": { "time": 2 },
+      "actions": [
+        { "spawn": "enemy", "type": "basic", "count": 4, "spacing": 80, "interval": 0.4 },
+        { "spawn": "formation", "formation": "drone","count": 4, "spacing": 80, "interval": 0.4 }
+      ]
+    },
+    {
+      "id": "tanks_in",
+      "at": { "time": 18 },
+      "actions": [
+        { "spawn": "tank", "count": 2, "spacing": 150, "interval": 1.2 }
+      ]
+    },
+    {
+      "id": "mixed",
+      "at": { "time": 28 },
+      "actions": [
+        { "spawn": "enemy", "type": "bomber", "count": 2, "spacing": 100, "interval": 0.6 },
+        { "spawn": "enemy", "type": "sniper", "count": 2, "spacing": 90, "interval": 0.5 },
+        { "spawn": "tank", "count": 1 }
+      ]
+    },
+    {
+      "id": "miniboss",
+      "at": { "time": 45 },
+      "requireClear": true,
+      "actions": [
+        { "spawn": "miniboss", "tag": "miniboss_mid" }
+      ]
+    },
+    {
+      "id": "final_boss",
+      "at": { "afterEntityDefeated": "miniboss_mid", "delay": 3 },
+      "requireClear": true,
+      "actions": [
+        { "spawn": "miniboss", "tag": "miniboss_final" }
+      ]
+    }
+  ]
+}

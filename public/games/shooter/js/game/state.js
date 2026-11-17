@@ -41,4 +41,7 @@ export const game = {
   showingWaveText: false,
   waveTextTimer: 0,
   waveIntroActive: false,
+  /** 'survival' | 'campaign' */
+  playMode: 'survival',
+  missionId: null,
 };

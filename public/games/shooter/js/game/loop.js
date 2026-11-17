@@ -22,6 +22,8 @@ import { CountdownSystem } from '../systems/countdown.js';
 import { SaveSystem } from '../systems/save.js';
 import { DialogSystem } from '../systems/dialog.js';
 import { WaveSystem } from '../systems/waves.js';
+import { LevelRunner } from '../systems/levelRunner.js';
+import { MissionSelectSystem } from '../systems/missionSelect.js';
 import { ShopSystem } from '../systems/shop.js';
 import { HudSystem } from '../systems/hud.js';
 import { GameOverSystem } from '../systems/gameover.js';
@@ -73,6 +75,8 @@ Object.assign(game, {
   bossTimer: 2500,
   bossActive: false,
   particles: [],
+  playMode: 'survival',
+  missionId: null,
 
   init() {
     // Carrega save antes de resetar
@@ -97,11 +101,17 @@ Object.assign(game, {
     this.loop(0);
   },
 
-  /** Sai do menu e começa a partida (countdown → wave 1). */
+  /** Sai do menu e começa a partida de sobrevivência (countdown → wave 1). */
   startFromMenu() {
     MenuSystem.hide();
+    MissionSelectSystem.hide();
     this.gameOver = false;
     GameOverSystem.hide();
+    LevelRunner.stop();
+    LevelRunner.clearFieldEntities();
+    this.playMode = 'survival';
+    this.missionId = null;
+    WaveSystem.reset();
     this.reset();
     this.isPaused = true;
     this.countdownSystem.start(() => {
@@ -110,16 +120,141 @@ Object.assign(game, {
     }, "");
   },
 
-  /** Volta ao menu a partir do Game Over (botão MENU). */
-  returnToMenu() {
+  /** Abre a seleção de missões (sem iniciar gameplay). */
+  openCampaign() {
+    MenuSystem.hide();
+    MissionSelectSystem.hide();
+    this.gameOver = false;
+    GameOverSystem.hide();
+    LevelRunner.stop();
+    LevelRunner.clearFieldEntities();
+    WaveSystem.reset();
+    this.playMode = 'campaign';
+    this.missionId = null;
+    this.isPaused = true;
+    MissionSelectSystem.show('list');
+  },
+
+  /**
+   * Compat: inicia campanha por id (load → beginMission).
+   * Preferir fluxo seleção → briefing → beginMission.
+   */
+  async startCampaign(missionId = 'mission_01') {
+    MenuSystem.hide();
+    MissionSelectSystem.hide();
+    this.gameOver = false;
+    GameOverSystem.hide();
+    LevelRunner.stop();
+    LevelRunner.clearFieldEntities();
+    WaveSystem.reset();
+    this.playMode = 'campaign';
+    this.missionId = missionId;
+
+    const result = await LevelRunner.load(missionId);
+    if (!result.ok) {
+      console.error('[Campaign] Falha ao carregar missão:', result.error);
+      this.isPaused = true;
+      MissionSelectSystem.show('list');
+      MissionSelectSystem.view = 'error';
+      MissionSelectSystem.errorMessage = String(result.error || 'Erro desconhecido');
+      return;
+    }
+    this.beginMission(result.level);
+  },
+
+  /**
+   * Inicia gameplay da missão já carregada (após briefing).
+   * @param {object} level
+   */
+  beginMission(level) {
+    if (!level || !level.id) {
+      console.error('[Campaign] beginMission: level inválido');
+      this.returnToMissionSelect();
+      return;
+    }
+    MenuSystem.hide();
+    MissionSelectSystem.hide();
+    GameOverSystem.hide();
+    LevelRunner.stop();
+    LevelRunner.clearFieldEntities();
+    WaveSystem.reset();
+    this.gameOver = false;
+    this.playMode = 'campaign';
+    this.missionId = level.id;
+    this.reset();
+    this.isPaused = true;
+    this.countdownSystem.start(() => {
+      this.isPaused = false;
+      // Start runner antes da decolagem: update é bloqueado por waveIntroActive,
+      // assim o HUD já lê level/objetivos sem avançar eventos.
+      LevelRunner.start(level);
+      if (this.player && typeof this.player.startTakeoffIntro === 'function') {
+        this.waveIntroActive = true;
+        this.player.startTakeoffIntro(() => {
+          this.waveIntroActive = false;
+        });
+      }
+    }, "");
+  },
+
+  /** Reinicia a missão de campanha atual (mesmo JSON), sem reabrir briefing. */
+  _restartCampaignMission() {
+    const missionId = this.missionId || 'mission_01';
+    LevelRunner.stop();
+    LevelRunner.clearFieldEntities();
+    WaveSystem.reset();
+    MissionSelectSystem.hide();
+    this.gameOver = false;
+    this.playMode = 'campaign';
+    this.missionId = missionId;
+    this.isPaused = true;
+
+    LevelRunner.load(missionId).then((result) => {
+      if (!result.ok) {
+        console.error('[Campaign] Falha ao reiniciar missão:', result.error);
+        this.returnToMissionSelect();
+        MissionSelectSystem.view = 'error';
+        MissionSelectSystem.errorMessage = String(result.error || 'Erro desconhecido');
+        return;
+      }
+      this.beginMission(result.level);
+    });
+  },
+
+  /** Volta à seleção de missões (campanha idle). */
+  returnToMissionSelect() {
     GameOverSystem.hide();
     this.gameOver = false;
+    LevelRunner.stop();
+    LevelRunner.clearFieldEntities();
     WaveSystem.reset();
     this.enemies = [];
     this.tanks = [];
     this.projectiles = [];
     this.enemyProjectiles = [];
     this.bossActive = false;
+    this.playMode = 'campaign';
+    this.missionId = null;
+    this.isPaused = true;
+    MenuSystem.hide();
+    MissionSelectSystem.show('list');
+  },
+
+  /** Volta ao menu principal. */
+  returnToMenu() {
+    GameOverSystem.hide();
+    this.gameOver = false;
+    LevelRunner.stop();
+    LevelRunner.clearFieldEntities();
+    WaveSystem.reset();
+    MissionSelectSystem.hide();
+    this.enemies = [];
+    this.tanks = [];
+    this.projectiles = [];
+    this.enemyProjectiles = [];
+    this.bossActive = false;
+    this.playMode = 'survival';
+    this.missionId = null;
     this.isPaused = true;
     MenuSystem.show();
   },
@@ -159,21 +294,31 @@ Object.assign(game, {
   continueAfterDeath() {
     if (!this.gameOver || this.lives <= 0) return;
     GameOverSystem.hide();
-    this.reset();
     this.gameOver = false;
+    if (this.playMode === 'campaign') {
+      this._restartCampaignMission();
+      return;
+    }
+    LevelRunner.stop();
+    this.reset();
     WaveSystem.reset();
     WaveSystem.startWave(1);
   },
 
-  /** Restart completo da run (Retry / Menu do painel de game over). */
+  /** Restart completo da run (Retry do painel de game over). */
   restartRun() {
     this.lives = 3;
     this.coins = 0;
     localStorage.removeItem('shooter_tutorials_executed');
     // Mantém highScore / highWave
     GameOverSystem.hide();
-    this.reset();
     this.gameOver = false;
+    if (this.playMode === 'campaign') {
+      this._restartCampaignMission();
+      return;
+    }
+    LevelRunner.stop();
+    this.reset();
     WaveSystem.reset();
     this.isPaused = true;
     this.countdownSystem.start(() => {
@@ -240,6 +385,11 @@ Object.assign(game, {
       return;
     }
 
+    if (MissionSelectSystem.active) {
+      MissionSelectSystem.update();
+      return;
+    }
+
     if (this.gameOver) return;
     
       // Não atualiza o jogo se o player está morrendo
@@ -257,11 +407,12 @@ Object.assign(game, {
       return;
     }
     
-    // Verifica se a wave foi completada
-  
-  
-    WaveSystem.checkWaveComplete();
-    
+    if (this.playMode === 'campaign') {
+      LevelRunner.update();
+    } else {
+      WaveSystem.checkWaveComplete();
+    }
+
     this.player.update();
     game.player.targetX = null;
     game.player.targetY = null;
@@ -675,6 +826,11 @@ Object.assign(game, {
       return;
     }
 
+    if (MissionSelectSystem.active) {
+      MissionSelectSystem.draw(ctx);
+      return;
+    }
+
     // Breakdown de draw (só cronometra se debug; senão fn direta)
     PerfProfiler.timeDraw('parallax', () => {
       this.drawBackground();
@@ -742,7 +898,7 @@ Object.assign(game, {
       ctx.fillText(text, canvas.width / 2, canvas.height / 2);
     }
 
-    if (this.showingWaveText) {
+    if (this.showingWaveText && this.playMode !== 'campaign') {
       ctx.fillStyle = "white";
       ctx.font = "28px monospace";
       ctx.textAlign = "center";
@@ -764,7 +920,7 @@ Object.assign(game, {
       game.particles.forEach((p) => p.draw(ctx));
     });
 
-    if (!this.player.airborne && !this.gameOver && !MenuSystem.active) {
+    if (!this.player.airborne && !this.gameOver && !MenuSystem.active && !MissionSelectSystem.active) {
       const L = HudSystem.layout || HudSystem.computeLayout();
       const tipY = (L.weapon?.y ?? 0) + (L.weapon?.h ?? 0) + 22;
       ctx.font = "16px Arial";
@@ -850,7 +1006,7 @@ Object.assign(game, {
         // Atualiza partículas de explosão
         game.particles = game.particles.filter((p) => !p.dead);
         game.particles.forEach((p) => p.update());
-      } else if (MenuSystem.active) {
+      } else if (MenuSystem.active || MissionSelectSystem.active) {
         PerfProfiler.beginUpdate();
         this.update();
         PerfProfiler.endUpdate();

@@ -10,6 +10,9 @@ import { SettingsSystem } from "./systems/settings.js";
 import { FullscreenPrompt } from "./systems/fullscreen.js";
 import { JoystickSystem } from "./systems/joystick.js";
 import { PerfProfiler } from "./systems/profiler.js";
+import { LevelRunner } from "./systems/levelRunner.js";
+import { WaveSystem } from "./systems/waves.js";
+import { MissionSelectSystem } from "./systems/missionSelect.js";
 
 initCanvas();
 initInput();
@@ -25,12 +28,16 @@ window.GameOverSystem = GameOverSystem;
 window.HudSystem = HudSystem;
 window.JoystickSystem = JoystickSystem;
 window.PerfProfiler = PerfProfiler;
+window.LevelRunner = LevelRunner;
+window.WaveSystem = WaveSystem;
+window.MissionSelectSystem = MissionSelectSystem;
 
 loadImages(ASSETS, () => {
   SettingsSystem.init();
   FullscreenPrompt.init();
   JoystickSystem.init();
   MenuSystem.init();
+  MissionSelectSystem.init();
   game.init();
   ShopSystem.init();
   DialogSystem.init();
