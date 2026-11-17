@@ -2,6 +2,7 @@
 export const game = {
   debug: false,
   devMode: false,
+  immortal: false,
   player: null,
   projectiles: [],
   enemyProjectiles: [],
@@ -40,4 +41,7 @@ export const game = {
   showingWaveText: false,
   waveTextTimer: 0,
   waveIntroActive: false,
+  /** 'survival' | 'campaign' */
+  playMode: 'survival',
+  missionId: null,
 };

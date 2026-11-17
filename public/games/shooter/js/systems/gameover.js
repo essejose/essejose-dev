@@ -2,6 +2,7 @@ import { canvas, screenToCanvas } from '../core/canvas.js';
 import { IMAGES } from '../core/assets.js';
 import { game } from '../game/state.js';
 import { WaveSystem } from './waves.js';
+import { LevelRunner } from './levelRunner.js';
 
 /**
  * Painéis de morte / game over (sprites) + valores + clique.
@@ -47,17 +48,24 @@ const GameOverSystem = {
     }
   },
 
+  _snapValues() {
+    const isCampaign = game.playMode === 'campaign';
+    return {
+      score: game.score ?? 0,
+      wave: isCampaign
+        ? LevelRunner.level?.number || 1
+        : WaveSystem.currentWave || 1,
+      highScore: game.highScore ?? 0,
+      highWave: isCampaign ? '—' : game.highWave ?? 0,
+      lives: game.lives ?? 0,
+    };
+  },
+
   show() {
     this.clearAutoTimer();
     this.active = true;
     this.mode = 'over';
-    this.snap = {
-      score: game.score ?? 0,
-      wave: WaveSystem.currentWave || 1,
-      highScore: game.highScore ?? 0,
-      highWave: game.highWave ?? 0,
-      lives: game.lives ?? 0,
-    };
+    this.snap = this._snapValues();
     this.layout = null;
   },
 
@@ -65,13 +73,7 @@ const GameOverSystem = {
     this.clearAutoTimer();
     this.active = true;
     this.mode = 'die';
-    this.snap = {
-      score: game.score ?? 0,
-      wave: WaveSystem.currentWave || 1,
-      highScore: game.highScore ?? 0,
-      highWave: game.highWave ?? 0,
-      lives: game.lives ?? 0,
-    };
+    this.snap = this._snapValues();
     this.layout = null;
 
     // Continua sozinho se não clicar (~2.5s)
@@ -226,7 +228,11 @@ const GameOverSystem = {
       return true;
     }
     if (this.hit(L.menu, canvasX, canvasY)) {
-      if (typeof game.returnToMenu === 'function') game.returnToMenu();
+      if (game.playMode === 'campaign' && typeof game.returnToMissionSelect === 'function') {
+        game.returnToMissionSelect();
+      } else if (typeof game.returnToMenu === 'function') {
+        game.returnToMenu();
+      }
       return true;
     }
     return false;

@@ -1,0 +1,11 @@
+{
+  "missions": [
+    {
+      "id": "mission_01",
+      "order": 1,
+      "file": "mission_01.json",
+      "available": true,
+      "thumbnail": null
+    }
+  ]
+}

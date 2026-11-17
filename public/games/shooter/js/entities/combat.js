@@ -8,6 +8,74 @@ import { JoystickSystem } from '../systems/joystick.js';
 // Sistema de Moedas
 const MAX_COINS_ON_SCREEN = 50; // Limite máximo de moedas na tela
 
+/** Caches offscreen reutilizados (estrela vetorial — sem emoji/fillText por frame). */
+const _coinCaches = new Map();
+const COIN_CACHE_R = 16; // raio base no cache (px)
+const COIN_CACHE_PAD = 4;
+
+function _drawCoinStar(g, cx, cy, outerR, innerR) {
+  const spikes = 5;
+  let rot = -Math.PI / 2;
+  g.beginPath();
+  for (let i = 0; i < spikes * 2; i++) {
+    const r = i % 2 === 0 ? outerR : innerR;
+    const x = cx + Math.cos(rot) * r;
+    const y = cy + Math.sin(rot) * r;
+    if (i === 0) g.moveTo(x, y);
+    else g.lineTo(x, y);
+    rot += Math.PI / spikes;
+  }
+  g.closePath();
+  g.fillStyle = '#1a1200';
+  g.fill();
+}
+
+/**
+ * Pré-renderiza sprite da moeda por valor (uma vez).
+ * ~36×36×4 ≈ 5 KB por valor distinto — desprezível.
+ */
+function getCoinCache(value) {
+  const key = value | 0;
+  let cache = _coinCaches.get(key);
+  if (cache) return cache;
+
+  const size = (COIN_CACHE_R + COIN_CACHE_PAD) * 2;
+  const c = document.createElement('canvas');
+  c.width = size;
+  c.height = size;
+  const g = c.getContext('2d');
+  const cx = size / 2;
+  const cy = size / 2;
+
+  let color = '#FFD700';
+  if (key >= 10) color = '#FF69B4';
+  else if (key >= 5) color = '#00CED1';
+
+  g.fillStyle = color;
+  g.strokeStyle = '#FFA500';
+  g.lineWidth = 2;
+  g.beginPath();
+  g.arc(cx, cy, COIN_CACHE_R, 0, Math.PI * 2);
+  g.fill();
+  g.stroke();
+
+  _drawCoinStar(g, cx, cy, 7, 3.2);
+
+  if (key > 1) {
+    g.font = 'bold 11px monospace';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.lineWidth = 3;
+    g.strokeStyle = '#000';
+    g.fillStyle = '#FFF';
+    g.strokeText(String(key), cx, cy - 9);
+    g.fillText(String(key), cx, cy - 9);
+  }
+
+  _coinCaches.set(key, c);
+  return c;
+}
+
 /**
  * Topo do playfield — abaixo da faixa do HUD (score / wave / shop).
  * Evita inimigos voando atrás dos painéis.
@@ -64,100 +132,56 @@ class CoinDrop {
   }
 
   update() {
-    // Física da moeda
     this.vy += this.gravity;
     this.x += this.vx;
     this.y += this.vy;
-    
-    // Fricção
     this.vx *= 0.98;
-    
-    // Bounce no chão
+
     const groundY = canvas.height - canvas.height * 0.1 - this.height;
     if (this.y >= groundY) {
       this.y = groundY;
       this.vy *= -this.bounce;
       this.vx *= 0.8;
-      
-      // Para de quicar se muito lento
-      if (Math.abs(this.vy) < 0.5) {
-        this.vy = 0;
-      }
+      if (Math.abs(this.vy) < 0.5) this.vy = 0;
     }
-    
-    // Move para esquerda com o cenário
+
     this.x -= 1;
-    
-    // Animação
     this.pulseTime += this.pulseSpeed;
-    
-    // Lifetime
     this.lifetime--;
-    
-    // Magnetismo - atrai para o player quando próximo
+
+    // Magnetismo — dist² evita Math.sqrt quando longe
     const dx = game.player.x - this.x;
     const dy = game.player.y - this.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    
-    if (dist < 100) {
-      const pullForce = 0.3;
-      this.x += (dx / dist) * pullForce * 10;
-      this.y += (dy / dist) * pullForce * 10;
+    const distSq = dx * dx + dy * dy;
+    if (distSq < 100 * 100 && distSq > 0.01) {
+      const inv = 3 / Math.sqrt(distSq); // 0.3 * 10
+      this.x += dx * inv;
+      this.y += dy * inv;
     }
   }
 
   draw(ctx) {
-    // Efeito de pulso
-    const scale = 1 + Math.sin(this.pulseTime) * 0.2;
-    
-    // Calcula opacidade baseado no tempo de vida restante
     let opacity = 1;
-    if (this.lifetime < 60) { // Últimos 1 segundo
-      // Pisca rapidamente
-      opacity = Math.floor(this.lifetime / 5) % 2 === 0 ? 1 : 0.3;
-    } else if (this.lifetime < 120) { // Últimos 2 segundos
-      // Fade gradual
-      opacity = 0.5 + (this.lifetime - 60) / 120 * 0.5;
+    if (this.lifetime < 60) {
+      opacity = ((this.lifetime / 5) | 0) % 2 === 0 ? 1 : 0.3;
+    } else if (this.lifetime < 120) {
+      opacity = 0.5 + ((this.lifetime - 60) / 120) * 0.5;
     }
-    
-    ctx.save();
+
+    const scale = 1 + Math.sin(this.pulseTime) * 0.2;
+    const drawSize = this.width * scale;
+    const cache = getCoinCache(this.value);
+    const prevAlpha = ctx.globalAlpha;
     ctx.globalAlpha = opacity;
-    ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
-    ctx.scale(scale, scale);
-    
-    // Cor baseada no valor
-    let color = '#FFD700'; // Dourado
-    if (this.value >= 10) color = '#FF69B4'; // Rosa para valores altos
-    else if (this.value >= 5) color = '#00CED1'; // Ciano para valores médios
-    
-    // Desenha a moeda
-    ctx.fillStyle = color;
-    ctx.strokeStyle = '#FFA500';
-    ctx.lineWidth = 2;
-    
-    ctx.beginPath();
-    ctx.arc(0, 0, this.width / 2, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    
-    // Símbolo da moeda
-    ctx.fillStyle = '#000';
-    ctx.font = 'bold 14px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('⭐', 0, 0);
-    
-    // Valor (se maior que 1)
-    if (this.value > 1) {
-      ctx.fillStyle = '#FFF';
-      ctx.strokeStyle = '#000';
-      ctx.lineWidth = 2;
-      ctx.font = 'bold 10px Arial';
-      ctx.strokeText(this.value, 0, -8);
-      ctx.fillText(this.value, 0, -8);
-    }
-    
-    ctx.restore();
+    // Blit do cache (sem arc/text/emoji/save por frame)
+    ctx.drawImage(
+      cache,
+      this.x + this.width * 0.5 - drawSize * 0.5,
+      this.y + this.height * 0.5 - drawSize * 0.5,
+      drawSize,
+      drawSize
+    );
+    ctx.globalAlpha = prevAlpha;
   }
 
   get dead() {
@@ -1146,6 +1170,8 @@ class Player {
   }
 
   takeDamage(amount, fromX, fromY) {
+    if (game.immortal) return;
+
     // Aplica dano
     this.health -= amount;
     this.invincibilityTimer = 180;
@@ -1415,7 +1441,7 @@ class Player {
       this.invincibilityTimer--;
       this.invincible = true;
     } else {
-      this.invincible = false;
+      this.invincible = !!game.immortal;
     }
     
     // Atualiza shield timer
@@ -1897,9 +1923,17 @@ class FlameEmitter {
   }
 
   draw() {
-    for (let i = 0; i < this.particles.length; i++) {
-      this.particles[i].draw();
+    // Batch: um único restore de alpha no fim
+    const prev = ctx.globalAlpha;
+    const list = this.particles;
+    for (let i = 0; i < list.length; i++) {
+      const p = list[i];
+      ctx.globalAlpha = p.life / p.maxLife;
+      ctx.fillStyle = p.color;
+      const s = p.size;
+      ctx.fillRect(p.x - s, p.y - s, s * 2, s * 2);
     }
+    ctx.globalAlpha = prev;
   }
 }
 
@@ -2076,24 +2110,57 @@ class SmokeParticle {
   }
 
   draw(context) {
-    if (!context) return; // Proteção contra contexto undefined
+    if (!context) return;
     const alpha = this.opacity;
-    // Fumaça cinza escura
-    context.fillStyle = `rgba(40, 40, 40, ${alpha})`;
+    if (alpha < 0.02) return;
+    const prev = context.globalAlpha;
+    context.globalAlpha = alpha;
+    context.fillStyle = '#282828';
     context.beginPath();
     context.arc(this.x, this.y, this.size, 0, Math.PI * 2);
     context.fill();
-    
-    // Borda mais clara para dar profundidade
-    context.fillStyle = `rgba(80, 80, 80, ${alpha * 0.5})`;
+    context.globalAlpha = alpha * 0.5;
+    context.fillStyle = '#505050';
     context.beginPath();
-    context.arc(this.x - this.size * 0.2, this.y - this.size * 0.2, this.size * 0.6, 0, Math.PI * 2);
+    context.arc(
+      this.x - this.size * 0.2,
+      this.y - this.size * 0.2,
+      this.size * 0.6,
+      0,
+      Math.PI * 2
+    );
     context.fill();
+    context.globalAlpha = prev;
   }
 
   get dead() {
     return this.life <= 0;
   }
+}
+
+/**
+ * Cache de sprites reescalados (fonte costuma ser 1024² → destino ~50px).
+ * Evita reescalar PNG grande a cada frame / entidade.
+ * Memória: w×h×4 por chave única (ex.: 50×50 ≈ 10 KB).
+ */
+const _scaledSpriteCache = new Map();
+
+function getScaledSprite(imageOrKey, width, height) {
+  const img =
+    typeof imageOrKey === 'string' ? IMAGES[imageOrKey] : imageOrKey;
+  if (!img || !img.complete || !img.naturalWidth) return null;
+  const w = width | 0;
+  const h = height | 0;
+  if (w <= 0 || h <= 0) return null;
+  const key = `${img.src || imageOrKey}@${w}x${h}`;
+  let cache = _scaledSpriteCache.get(key);
+  if (cache) return cache;
+  cache = document.createElement('canvas');
+  cache.width = w;
+  cache.height = h;
+  cache.getContext('2d').drawImage(img, 0, 0, w, h);
+  _scaledSpriteCache.set(key, cache);
+  return cache;
 }
 
 // Classe para partículas de impacto (quando toma dano)
@@ -2161,10 +2228,12 @@ class FlameParticle {
   }
 
   draw() {
+    // Preferir FlameEmitter.draw (batch). Fallback se chamado isolado.
+    const prev = ctx.globalAlpha;
     ctx.globalAlpha = this.life / this.maxLife;
     ctx.fillStyle = this.color;
     ctx.fillRect(this.x - this.size, this.y - this.size, this.size * 2, this.size * 2);
-    ctx.globalAlpha = 1;
+    ctx.globalAlpha = prev;
   }
 
   get dead() {
@@ -2202,7 +2271,7 @@ function createEnemy(x, y, type = 'basic', overrides = {}) {
       height: 50,
       health: 2,
       shield: 0,
-      movement: { speed: 2, wobbleSpeed: 0.06, wobbleAmplitude: 15, trackPlayer: 0.15 },
+      movement: { speed: 2.7, wobbleSpeed: 0.06, wobbleAmplitude: 15, trackPlayer: 0.15 },
       flames: { spawnRate: 6, particleCount: [1, 1], maxParticles: 8 },
       weapon: { damage: 1, cooldownMin: 60, cooldownMax: 180, aimBias: 0.25 }
     },
@@ -2212,7 +2281,7 @@ function createEnemy(x, y, type = 'basic', overrides = {}) {
       height: 45,
       health: 4,
       shield: 0,
-      movement: { speed: 2.5, wobbleSpeed: 0.08, wobbleAmplitude: 10, trackPlayer: 0.35 },
+      movement: { speed: 3.97, wobbleSpeed: 0.08, wobbleAmplitude: 10, trackPlayer: 0.35 },
       flames: { spawnRate: 7, particleCount: [1, 1], maxParticles: 6 },
       weapon: { damage: 1, cooldownMin: 60, cooldownMax: 180, aimBias: 0.35 }
     },
@@ -2222,7 +2291,7 @@ function createEnemy(x, y, type = 'basic', overrides = {}) {
       height: 60,
       health: 5,
       shield: 0,
-      movement: { speed: 1.5, wobbleSpeed: 0.05, wobbleAmplitude: 22, trackPlayer: 0.12 },
+      movement: { speed: 2, wobbleSpeed: 0.05, wobbleAmplitude: 22, trackPlayer: 0.12 },
       flames: { spawnRate: 5, particleCount: [1, 2], maxParticles: 10 },
       weaponType: 'triple',
       weapon: { damage: 1, cooldownMin: 90, cooldownMax: 150, aimBias: 0.15, alignRange: 100 }
@@ -2233,7 +2302,7 @@ function createEnemy(x, y, type = 'basic', overrides = {}) {
       height: 30,
       health: 4,
       shield: 0,
-      movement: { speed: 1, wobbleSpeed: 0.03, wobbleAmplitude: 8, trackPlayer: 0.05 },
+      movement: { speed: 1.59, wobbleSpeed: 0.03, wobbleAmplitude: 8, trackPlayer: 0.05 },
       flames: { spawnRate: 8, particleCount: [1, 1], maxParticles: 6 },
       weaponType: 'sniper',
       weapon: { damage: 2, cooldownMin: 180, cooldownMax: 240 }
@@ -2245,7 +2314,7 @@ function createEnemy(x, y, type = 'basic', overrides = {}) {
       health: 6,
       shield: 5,
       movement: {
-        speed: 1.5,
+        speed: 2.38,
         wobbleSpeed: 0.04,
         wobbleAmplitude: 10,
         trackPlayer: 0.28,
@@ -2347,7 +2416,7 @@ class EnemyComposed {
     // Adiciona movimento com wobble
     if (config.movement !== false) {
       this.components.push(new WobbleMovement(config.movement || {
-        speed: 2,
+        speed: 2.7,
         wobbleSpeed: 0.06,
         wobbleAmplitude: 15
       }));
@@ -2445,49 +2514,46 @@ class EnemyComposed {
   }
   
   draw() {
-    // Desenha efeitos primeiro (flames, etc)
-    this.components.forEach(component => {
-      if (component.draw) component.draw(this);
-    });
-    
-    // Desenha sprite do inimigo
-    if (IMAGES[this.sprite] && IMAGES[this.sprite].complete) {
-      ctx.drawImage(IMAGES[this.sprite], this.x, this.y, this.width, this.height);
+    const comps = this.components;
+    for (let i = 0; i < comps.length; i++) {
+      const c = comps[i];
+      if (c.draw) c.draw(this);
+    }
+
+    const sprite = getScaledSprite(this.sprite, this.width, this.height);
+    if (sprite) {
+      ctx.drawImage(sprite, this.x, this.y);
     } else {
-      // Fallback caso a imagem não carregue
-      ctx.fillStyle = "#594700";
+      ctx.fillStyle = '#594700';
       ctx.fillRect(this.x, this.y, this.width, this.height);
     }
-    
-    // Desenha barra de escudo (se tiver shield)
+
+    const barX = this.x;
+    const barW = this.width;
     if (this.maxShield > 0) {
       const shieldBarY = this.y - 12;
-      ctx.fillStyle = "rgba(100, 100, 100, 0.5)";
-      ctx.fillRect(this.x, shieldBarY, this.width, 4);
-      ctx.fillStyle = "cyan";
-      ctx.fillRect(
-        this.x,
-        shieldBarY,
-        this.width * (this.shield / this.maxShield),
-        4
-      );
-      ctx.strokeStyle = "black";
-      ctx.strokeRect(this.x, shieldBarY, this.width, 4);
+      ctx.fillStyle = 'rgba(100, 100, 100, 0.5)';
+      ctx.fillRect(barX, shieldBarY, barW, 4);
+      ctx.fillStyle = 'cyan';
+      ctx.fillRect(barX, shieldBarY, barW * (this.shield / this.maxShield), 4);
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(barX, shieldBarY, barW, 1);
+      ctx.fillRect(barX, shieldBarY + 3, barW, 1);
     }
-    
-    // Desenha barra de vida
-    const healthBarY = this.y - (this.maxShield > 0 ? 6 : 6);
-    ctx.fillStyle = "gray";
-    ctx.fillRect(this.x, healthBarY, this.width, 5);
-    ctx.fillStyle = "lime";
+
+    const healthBarY = this.y - 6;
+    ctx.fillStyle = 'gray';
+    ctx.fillRect(barX, healthBarY, barW, 5);
+    ctx.fillStyle = 'lime';
     ctx.fillRect(
-      this.x,
+      barX,
       healthBarY,
-      this.width * (this.health / this.maxHealth),
+      barW * (this.health / this.maxHealth),
       5
     );
-    ctx.strokeStyle = "black";
-    ctx.strokeRect(this.x, healthBarY, this.width, 5);
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(barX, healthBarY, barW, 1);
+    ctx.fillRect(barX, healthBarY + 4, barW, 1);
   }
 }
 
@@ -2502,7 +2568,7 @@ class MiniBoss {
     this.height = 80;
     this.maxHealth = 50;
     this.health = 50;
-    this.speed = 1;
+    this.speed = 1.59;
     this.cooldown = 90;
     this.damage = 1;
     this.dead = false;
@@ -2616,8 +2682,8 @@ class MiniBoss {
     this.deathRotation += this.deathRotationSpeed;
     this.deathRotationSpeed += 0.004;
 
-    // Fumaça intensa na queda
-    if (this.deathTimer % 2 === 0) {
+    // Fumaça intensa na queda (cap para não explodir o draw)
+    if (this.deathTimer % 2 === 0 && this.smokeParticles.length < 28) {
       const smokeX = this.x + this.width / 2 + (Math.random() - 0.5) * 40;
       const smokeY = this.y + this.height / 2 + (Math.random() - 0.5) * 30;
       this.smokeParticles.push(new SmokeParticle(smokeX, smokeY));
@@ -2700,10 +2766,15 @@ class MiniBoss {
     if (healthPercent <= 0.5 && healthPercent > 0) {
       this.smokeTimer++;
       const smokeFrequency = healthPercent <= 0.25 ? 3 : 6;
-      if (this.smokeTimer >= smokeFrequency) {
+      if (
+        this.smokeTimer >= smokeFrequency &&
+        this.smokeParticles.length < 20
+      ) {
         const smokeX = this.x + this.width * 0.9;
         const smokeY = this.y + this.height * 0.55 + (Math.random() - 0.5) * 16;
         this.smokeParticles.push(new SmokeParticle(smokeX, smokeY));
+        this.smokeTimer = 0;
+      } else if (this.smokeTimer >= smokeFrequency) {
         this.smokeTimer = 0;
       }
     }
@@ -2720,41 +2791,39 @@ class MiniBoss {
   }
 
   draw() {
-    // Fogo + fumaça atrás do sprite
     this.flames.draw();
-    this.smokeParticles.forEach((p) => p.draw(ctx));
+    const smokes = this.smokeParticles;
+    for (let i = 0; i < smokes.length; i++) smokes[i].draw(ctx);
 
-    // Após explosão no chão, só partículas
     if (this.isDying && this.exploded) return;
 
     ctx.save();
     if (this.isDying) {
-      const cx = this.x + this.width / 2;
-      const cy = this.y + this.height / 2;
+      const cx = this.x + this.width * 0.5;
+      const cy = this.y + this.height * 0.5;
       ctx.translate(cx, cy);
       ctx.rotate(this.deathRotation);
       ctx.translate(-cx, -cy);
-      if (Math.floor(this.deathTimer / 3) % 2 === 0) ctx.globalAlpha = 0.85;
+      if (((this.deathTimer / 3) | 0) % 2 === 0) ctx.globalAlpha = 0.85;
     }
 
-    if (IMAGES.chefe && IMAGES.chefe.complete && IMAGES.chefe.naturalWidth) {
-      ctx.drawImage(IMAGES.chefe, this.x, this.y, this.width, this.height);
+    const body = getScaledSprite('chefe', this.width, this.height);
+    if (body) {
+      ctx.drawImage(body, this.x, this.y);
     } else {
-      ctx.fillStyle = "#880000";
+      ctx.fillStyle = '#880000';
       ctx.fillRect(this.x, this.y, this.width, this.height);
     }
     ctx.restore();
 
     if (!this.isDying) {
-      ctx.fillStyle = "black";
-      ctx.fillRect(this.x, this.y - 10, this.width, 6);
-      ctx.fillStyle = "red";
-      ctx.fillRect(
-        this.x,
-        this.y - 10,
-        this.width * (this.health / this.maxHealth),
-        6
-      );
+      const barX = this.x;
+      const barW = this.width;
+      const barY = this.y - 10;
+      ctx.fillStyle = 'black';
+      ctx.fillRect(barX, barY, barW, 6);
+      ctx.fillStyle = 'red';
+      ctx.fillRect(barX, barY, barW * (this.health / this.maxHealth), 6);
     }
   }
 
@@ -2791,15 +2860,15 @@ class MiniBossProjectile {
   }
 }
 
-// Classe de partícula de fumaça do tank
+/** Fumaça do tank — sem template rgba/frame (menos GC). */
 class TankSmokeParticle {
   constructor(x, y) {
     this.x = x;
     this.y = y;
-    this.vx = Math.random() * 0.5 - 0.5; // Movimento horizontal leve
-    this.vy = -Math.random() * 0.5 - 0.3; // Sobe levemente
-    this.size = Math.random() * 3 + 2; // Tamanho entre 2-5
-    this.life = 40; // Vida da partícula em frames
+    this.vx = Math.random() * 0.5 - 0.5;
+    this.vy = -Math.random() * 0.5 - 0.3;
+    this.size = Math.random() * 3 + 2;
+    this.life = 40;
     this.maxLife = this.life;
     this.opacity = 0.5;
   }
@@ -2808,29 +2877,119 @@ class TankSmokeParticle {
     this.x += this.vx;
     this.y += this.vy;
     this.life--;
-    this.size += 0.15; // Expande levemente
-    this.opacity = (this.life / this.maxLife) * 0.5; // Fade out
-    this.vy *= 0.98; // Desacelera ao subir
+    this.size += 0.15;
+    this.opacity = (this.life / this.maxLife) * 0.5;
+    this.vy *= 0.98;
   }
 
   draw() {
     const alpha = this.opacity;
-    // Fumaça cinza do motor
-    ctx.fillStyle = `rgba(60, 60, 60, ${alpha})`;
+    if (alpha < 0.02) return;
+    const prev = ctx.globalAlpha;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#3c3c3c';
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
     ctx.fill();
-    
-    // Borda mais clara
-    ctx.fillStyle = `rgba(100, 100, 100, ${alpha * 0.3})`;
+    ctx.globalAlpha = alpha * 0.3;
+    ctx.fillStyle = '#646464';
     ctx.beginPath();
-    ctx.arc(this.x - this.size * 0.3, this.y - this.size * 0.3, this.size * 0.5, 0, Math.PI * 2);
+    ctx.arc(
+      this.x - this.size * 0.3,
+      this.y - this.size * 0.3,
+      this.size * 0.5,
+      0,
+      Math.PI * 2
+    );
     ctx.fill();
+    ctx.globalAlpha = prev;
   }
 
   get dead() {
     return this.life <= 0;
   }
+}
+
+// --- Caches estáticos do Tank (rebuild só se raio/tamanho mudar) ---
+const TANK_WHEEL_FRAMES = 16;
+const TANK_MAX_SMOKE = 14;
+/** @type {HTMLCanvasElement[]|null} */
+let _tankWheelFrames = null;
+let _tankWheelRadius = 0;
+/** @type {HTMLCanvasElement|null} */
+let _tankBodyCache = null;
+let _tankBodyCacheKey = '';
+/** @type {HTMLCanvasElement|null} */
+let _tankCannonCache = null;
+let _tankCannonLen = 0;
+
+function ensureTankWheelFrames(radius) {
+  if (_tankWheelFrames && _tankWheelRadius === radius) return;
+  _tankWheelRadius = radius;
+  const size = Math.ceil(radius * 2) + 2;
+  const frames = new Array(TANK_WHEEL_FRAMES);
+  for (let f = 0; f < TANK_WHEEL_FRAMES; f++) {
+    const c = document.createElement('canvas');
+    c.width = size;
+    c.height = size;
+    const g = c.getContext('2d');
+    const cx = size * 0.5;
+    const cy = size * 0.5;
+    g.translate(cx, cy);
+    g.rotate((f / TANK_WHEEL_FRAMES) * Math.PI * 2);
+
+    g.fillStyle = '#2a2a2a';
+    g.beginPath();
+    g.arc(0, 0, radius, 0, Math.PI * 2);
+    g.fill();
+
+    g.fillStyle = '#555555';
+    g.beginPath();
+    g.arc(0, 0, radius - 2, 0, Math.PI * 2);
+    g.fill();
+
+    g.strokeStyle = '#777777';
+    g.lineWidth = 1.5;
+    for (let i = 0; i < 4; i++) {
+      const angle = (i * Math.PI) / 2;
+      g.beginPath();
+      g.moveTo(0, 0);
+      g.lineTo(Math.cos(angle) * (radius - 2), Math.sin(angle) * (radius - 2));
+      g.stroke();
+    }
+    frames[f] = c;
+  }
+  _tankWheelFrames = frames;
+}
+
+function getTankBodyCache(width, height) {
+  const img = IMAGES.tank;
+  if (!img || !img.complete || !img.naturalWidth) return null;
+  const key = `${width}x${height}:${img.naturalWidth}x${img.naturalHeight}`;
+  if (_tankBodyCache && _tankBodyCacheKey === key) return _tankBodyCache;
+  const c = document.createElement('canvas');
+  c.width = width;
+  c.height = height;
+  c.getContext('2d').drawImage(img, 0, 0, width, height);
+  _tankBodyCache = c;
+  _tankBodyCacheKey = key;
+  return c;
+}
+
+function getTankCannonCache(length) {
+  if (_tankCannonCache && _tankCannonLen === length) return _tankCannonCache;
+  const h = 8;
+  const c = document.createElement('canvas');
+  c.width = length;
+  c.height = h;
+  const g = c.getContext('2d');
+  g.fillStyle = '#3e541f';
+  g.fillRect(0, 1, length, 6);
+  g.fillStyle = '#222222';
+  g.fillRect(length - 5, 0, 5, h);
+  _tankCannonCache = c;
+  _tankCannonLen = length;
+  return c;
 }
 
 // Classe de partícula de disparo (muzzle flash)
@@ -2881,12 +3040,28 @@ let Tank = class Tank {
     this.y = canvas.height - canvas.height * 0.1 - 40;
     this.width = 80;
     this.height = 60;
-    this.speed = 1.2;
+    this.baseSpeed = 1.92;
+    this.speed = this.baseSpeed;
+    // Rush: só se o avião estiver à frente (esquerda); velocidade moderada acima do crawl
+    this.rushSpeed = 3.6;
+    this.rushTriggerDist = 220;
+    this.rushExitDist = 320;
+    this.rushFrontMargin = 50; // evita rush só por estar acima do tanque
+    this.rushLevelMargin = 70; // só rush se o avião estiver no nível vertical do tanque
+    this.rushMaxFrames = 55; // rush sempre termina
+    this.rushFrames = 0;
     this.cannonAngle = 0;
     this.cannonLength = 45;
 
-    // Ciclo: andar → parar → atirar → andar
-    this.aiPhase = 'move'; // 'move' | 'aim' | 'fire'
+    // Vida + escudo (dano primeiro no shield)
+    this.maxHealth = 5;
+    this.health = this.maxHealth;
+    this.maxShield = 8;
+    this.shield = this.maxShield;
+    this.hitEffect = 'spark';
+
+    // Ciclo: andar → parar → atirar → andar (+ rush perto do player)
+    this.aiPhase = 'move'; // 'move' | 'aim' | 'fire' | 'rush'
     this.phaseTimer = 50 + Math.floor(Math.random() * 40);
     this.shotsThisStop = 0;
 
@@ -2902,73 +3077,92 @@ let Tank = class Tank {
     this.smokeSpawnCounter = 0;
   }
 
-  drawWheel(x, y) {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(this.wheelRotation);
-    
-    // Roda externa (pneu)
-    ctx.fillStyle = "#2a2a2a";
-    ctx.beginPath();
-    ctx.arc(0, 0, this.wheelRadius, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Aro interno
-    ctx.fillStyle = "#555";
-    ctx.beginPath();
-    ctx.arc(0, 0, this.wheelRadius - 2, 0, Math.PI * 2);
-    ctx.fill();
-    
-    // Raios da roda (4 raios)
-    ctx.strokeStyle = "#777";
-    ctx.lineWidth = 1.5;
-    for (let i = 0; i < 4; i++) {
-      const angle = (i * Math.PI) / 2;
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.lineTo(Math.cos(angle) * (this.wheelRadius - 2), Math.sin(angle) * (this.wheelRadius - 2));
-      ctx.stroke();
+  takeDamage(amount = 1, _fromX = null, _fromY = null) {
+    if (this.shield > 0) {
+      const remainingDamage = amount - this.shield;
+      this.shield = Math.max(0, this.shield - amount);
+
+      if (this.shield === 0 && this.maxShield > 0) {
+        if (window.game?.damageTexts) {
+          window.game.damageTexts.push(
+            new DamageText(this.x, this.y, 'Shield Down', 'cyan')
+          );
+        }
+      }
+
+      if (remainingDamage > 0) {
+        this.health -= remainingDamage;
+      }
+    } else {
+      this.health -= amount;
     }
-    
-    ctx.restore();
+
+    return this.health <= 0;
+  }
+
+  drawWheel(x, y) {
+    ensureTankWheelFrames(this.wheelRadius);
+    const frames = _tankWheelFrames;
+    const twopi = Math.PI * 2;
+    let t = this.wheelRotation % twopi;
+    if (t < 0) t += twopi;
+    const idx = ((t / twopi) * TANK_WHEEL_FRAMES) | 0;
+    const img = frames[idx];
+    // Blit do frame — sem save/rotate/arc por roda
+    ctx.drawImage(img, x - img.width * 0.5, y - img.height * 0.5);
   }
 
   draw() {
-    // Desenha partículas de fumaça PRIMEIRO (atrás de tudo)
-    this.smokeParticles.forEach(p => p.draw());
-    
-    // Desenha o corpo do tank (sprite)
-    if (IMAGES.tank && IMAGES.tank.complete) {
-      ctx.drawImage(IMAGES.tank, this.x, this.y, this.width, this.height);
+    const smokes = this.smokeParticles;
+    for (let i = 0; i < smokes.length; i++) smokes[i].draw();
+
+    const body = getTankBodyCache(this.width, this.height);
+    if (body) {
+      ctx.drawImage(body, this.x, this.y);
     } else {
-      // Fallback caso o sprite não carregue
-    ctx.fillStyle = "#333";
-    ctx.fillRect(this.x, this.y, this.width, this.height);
+      ctx.fillStyle = '#333333';
+      ctx.fillRect(this.x, this.y, this.width, this.height);
     }
-    
-    // Desenha as rodas POR CIMA do sprite
-    this.wheelPositions.forEach(wheel => {
+
+    const wheels = this.wheelPositions;
+    for (let i = 0; i < wheels.length; i++) {
+      const wheel = wheels[i];
       this.drawWheel(this.x + wheel.x, this.y + wheel.y);
-    });
-    
-    // Desenha o canhão rotacionado apontando para o player (por último)
-    const cannonBaseX = this.x + this.width / 2 ;
-    const cannonBaseY = this.y + 15; // Ajusta para ficar no topo do tank
-    
+    }
+
+    const cannonBaseX = this.x + this.width * 0.5;
+    const cannonBaseY = this.y + 15;
+    const cannon = getTankCannonCache(this.cannonLength);
     ctx.save();
     ctx.translate(cannonBaseX, cannonBaseY);
     ctx.rotate(this.cannonAngle);
-    
-    // Desenha o canhão
-    ctx.fillStyle = "#3e541f";
-
-    ctx.fillRect(0, -3, this.cannonLength, 6); // Canhão horizontal que será rotacionado
-    
-    // Ponta do canhão mais escura
-    ctx.fillStyle = "#222";
-    ctx.fillRect(this.cannonLength - 5, -4, 5, 8);
-    
+    ctx.drawImage(cannon, 0, -cannon.height * 0.5);
     ctx.restore();
+
+    // Barras: fill só (sem strokeRect — visual quase igual, bem mais barato)
+    const barX = this.x;
+    const barW = this.width;
+    if (this.maxShield > 0) {
+      const shieldBarY = this.y - 12;
+      const sw = barW * (this.shield / this.maxShield);
+      ctx.fillStyle = 'rgba(100, 100, 100, 0.5)';
+      ctx.fillRect(barX, shieldBarY, barW, 4);
+      ctx.fillStyle = 'cyan';
+      ctx.fillRect(barX, shieldBarY, sw, 4);
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(barX, shieldBarY, barW, 1);
+      ctx.fillRect(barX, shieldBarY + 3, barW, 1);
+    }
+
+    const healthBarY = this.y - 6;
+    const hw = barW * (Math.max(0, this.health) / this.maxHealth);
+    ctx.fillStyle = 'gray';
+    ctx.fillRect(barX, healthBarY, barW, 5);
+    ctx.fillStyle = 'lime';
+    ctx.fillRect(barX, healthBarY, hw, 5);
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(barX, healthBarY, barW, 1);
+    ctx.fillRect(barX, healthBarY + 4, barW, 1);
   }
 
   fireCannon(target) {
@@ -2986,7 +3180,8 @@ let Tank = class Tank {
       )
     );
 
-    const particleCount = Math.floor(Math.random() * 3) + 6;
+    const room = TANK_MAX_SMOKE - this.smokeParticles.length;
+    const particleCount = Math.min(room, Math.floor(Math.random() * 3) + 4);
     for (let i = 0; i < particleCount; i++) {
       this.smokeParticles.push(
         new MuzzleFlashParticle(cannonTipX - 5, cannonTipY - 5, this.cannonAngle)
@@ -2994,38 +3189,85 @@ let Tank = class Tank {
     }
   }
 
+  _spawnExhaustSmoke(interval = 8) {
+    this.smokeSpawnCounter++;
+    if (this.smokeSpawnCounter < interval) return;
+    this.smokeSpawnCounter = 0;
+    if (this.smokeParticles.length >= TANK_MAX_SMOKE) return;
+    const exhaustX = this.x + this.width - 5;
+    const exhaustY = this.y + this.height / 2;
+    this.smokeParticles.push(new TankSmokeParticle(exhaustX, exhaustY));
+  }
+
   update() {
     const target = game.player;
     const onScreen = this.x < canvas.width - 20;
+    const tankCx = this.x + this.width / 2;
+    const playerCx = target ? target.x + target.width / 2 : 0;
+    const dx = target ? playerCx - tankCx : 0;
+    const absDx = Math.abs(dx);
 
     // Mira sempre no player
     if (target) {
-      const dx = target.x + target.width / 2 - (this.x + this.width / 2);
       const dy = target.y + target.height / 2 - (this.y + this.height / 2 - 5);
       this.cannonAngle = Math.atan2(dy, dx);
     }
 
     this.phaseTimer--;
 
+    // Frente do tanque = à esquerda (direção do movimento). Não conta “acima”.
+    const playerInFront =
+      !!target && playerCx < tankCx - this.rushFrontMargin;
+    const tankCy = this.y + this.height / 2;
+    const playerCy = target ? target.y + target.height / 2 : 0;
+    const playerAtTankLevel =
+      !!target && Math.abs(playerCy - tankCy) <= this.rushLevelMargin;
+
     if (this.aiPhase === 'move') {
-      this.x -= this.speed;
-      this.wheelRotation += this.speed * 0.15;
+      // Só acelera se o avião estiver na frente, no nível do tanque e no alcance
+      if (
+        target &&
+        onScreen &&
+        playerInFront &&
+        playerAtTankLevel &&
+        absDx < this.rushTriggerDist
+      ) {
+        this.aiPhase = 'rush';
+        this.rushFrames = 0;
+        this.phaseTimer = 0;
+      } else {
+        this.x -= this.speed;
+        this.wheelRotation += this.speed * 0.15;
+        this._spawnExhaustSmoke(8);
 
-      this.smokeSpawnCounter++;
-      if (this.smokeSpawnCounter >= 8) {
-        const exhaustX = this.x + this.width - 5;
-        const exhaustY = this.y + this.height / 2;
-        this.smokeParticles.push(new TankSmokeParticle(exhaustX, exhaustY));
-        this.smokeSpawnCounter = 0;
+        if (this.phaseTimer <= 0 && onScreen) {
+          this.aiPhase = 'aim';
+          this.phaseTimer = 40 + Math.floor(Math.random() * 21); // 40–60 frames parado
+          this.shotsThisStop = 0;
+          this.maxShotsThisStop = 1 + (Math.random() < 0.35 ? 1 : 0);
+        } else if (this.phaseTimer <= 0) {
+          this.phaseTimer = 30;
+        }
       }
+    } else if (this.aiPhase === 'rush') {
+      const rushSpeed = this.rushSpeed;
+      this.x -= rushSpeed;
+      this.wheelRotation += rushSpeed * 0.15;
+      this._spawnExhaustSmoke(4);
+      this.rushFrames++;
 
-      if (this.phaseTimer <= 0 && onScreen) {
+      const passedPlayer = target && this.x + this.width < target.x - 40;
+      const lostFront = !playerInFront;
+      const lostLevel = !playerAtTankLevel;
+      const leftZone = !target || absDx > this.rushExitDist || !onScreen;
+      const timedOut = this.rushFrames >= this.rushMaxFrames;
+      if (passedPlayer || lostFront || lostLevel || leftZone || timedOut) {
+        // Fim do rush → para, mira e dá um tiro
         this.aiPhase = 'aim';
-        this.phaseTimer = 40 + Math.floor(Math.random() * 21); // 40–60 frames parado
+        this.phaseTimer = 22;
         this.shotsThisStop = 0;
-        this.maxShotsThisStop = 1 + (Math.random() < 0.35 ? 1 : 0);
-      } else if (this.phaseTimer <= 0) {
-        this.phaseTimer = 30;
+        this.maxShotsThisStop = 1;
+        this.rushFrames = 0;
       }
     } else if (this.aiPhase === 'aim') {
       // Parado — telegraph / mira
@@ -3064,10 +3306,10 @@ let DiveEnemy = class DiveEnemy {
     this.y = player.y; // Inicia na mesma altura que o player
     this.width = 60;
     this.height = 30;
-    this.speed = 5;
+    this.speed = 7.94;
     this.phase = "approaching";
-    this.attackSpeed = 6;
-    this.exitSpeed = 4;
+    this.attackSpeed = 9.26;
+    this.exitSpeed = 6.35;
     this.triggerDistance = 250;
     this.shot = false;
     this.sprite = 'inimigo4';
@@ -3106,10 +3348,11 @@ let DiveEnemy = class DiveEnemy {
   }
 
   draw() {
-    if (IMAGES.inimigo4 && IMAGES.inimigo4.complete) {
-      ctx.drawImage(IMAGES.inimigo4, this.x, this.y, this.width, this.height);
+    const sprite = getScaledSprite('inimigo4', this.width, this.height);
+    if (sprite) {
+      ctx.drawImage(sprite, this.x, this.y);
     } else {
-      ctx.fillStyle = "#ffaa00";
+      ctx.fillStyle = '#ffaa00';
       ctx.fillRect(this.x, this.y, this.width, this.height);
     }
   }
@@ -3280,10 +3523,10 @@ function addHealthToEnemy(cls, baseHealth = 1) {
 
 // ============================================
 // Adiciona saúde aos inimigos legados (NÃO usar para novos inimigos)
-// Inimigos criados via createEnemy() já possuem saúde integrada
+// Inimigos criados via createEnemy() já possuem saúde integrada.
+// Tank já tem health + shield + takeDamage próprios — não wrapear.
 // ============================================
 DiveEnemy = addHealthToEnemy(DiveEnemy, 2);
-Tank = addHealthToEnemy(Tank, 5);
 // DroneEnemy = addHealthToEnemy(DroneEnemy, 1); // Comentado - agora usa createEnemy('drone')
 
 

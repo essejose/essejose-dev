@@ -22,11 +22,14 @@ import { CountdownSystem } from '../systems/countdown.js';
 import { SaveSystem } from '../systems/save.js';
 import { DialogSystem } from '../systems/dialog.js';
 import { WaveSystem } from '../systems/waves.js';
+import { LevelRunner } from '../systems/levelRunner.js';
+import { MissionSelectSystem } from '../systems/missionSelect.js';
 import { ShopSystem } from '../systems/shop.js';
 import { HudSystem } from '../systems/hud.js';
 import { GameOverSystem } from '../systems/gameover.js';
 import { MenuSystem } from '../systems/menu.js';
 import { JoystickSystem } from '../systems/joystick.js';
+import { PerfProfiler } from '../systems/profiler.js';
 // Collision helpers: ./collisions.js (aabbOverlap, distSq)
 
 // ============================================
@@ -72,6 +75,8 @@ Object.assign(game, {
   bossTimer: 2500,
   bossActive: false,
   particles: [],
+  playMode: 'survival',
+  missionId: null,
 
   init() {
     // Carrega save antes de resetar
@@ -96,11 +101,17 @@ Object.assign(game, {
     this.loop(0);
   },
 
-  /** Sai do menu e começa a partida (countdown → wave 1). */
+  /** Sai do menu e começa a partida de sobrevivência (countdown → wave 1). */
   startFromMenu() {
     MenuSystem.hide();
+    MissionSelectSystem.hide();
     this.gameOver = false;
     GameOverSystem.hide();
+    LevelRunner.stop();
+    LevelRunner.clearFieldEntities();
+    this.playMode = 'survival';
+    this.missionId = null;
+    WaveSystem.reset();
     this.reset();
     this.isPaused = true;
     this.countdownSystem.start(() => {
@@ -109,16 +120,141 @@ Object.assign(game, {
     }, "");
   },
 
-  /** Volta ao menu a partir do Game Over (botão MENU). */
-  returnToMenu() {
+  /** Abre a seleção de missões (sem iniciar gameplay). */
+  openCampaign() {
+    MenuSystem.hide();
+    MissionSelectSystem.hide();
+    this.gameOver = false;
+    GameOverSystem.hide();
+    LevelRunner.stop();
+    LevelRunner.clearFieldEntities();
+    WaveSystem.reset();
+    this.playMode = 'campaign';
+    this.missionId = null;
+    this.isPaused = true;
+    MissionSelectSystem.show('list');
+  },
+
+  /**
+   * Compat: inicia campanha por id (load → beginMission).
+   * Preferir fluxo seleção → briefing → beginMission.
+   */
+  async startCampaign(missionId = 'mission_01') {
+    MenuSystem.hide();
+    MissionSelectSystem.hide();
+    this.gameOver = false;
+    GameOverSystem.hide();
+    LevelRunner.stop();
+    LevelRunner.clearFieldEntities();
+    WaveSystem.reset();
+    this.playMode = 'campaign';
+    this.missionId = missionId;
+
+    const result = await LevelRunner.load(missionId);
+    if (!result.ok) {
+      console.error('[Campaign] Falha ao carregar missão:', result.error);
+      this.isPaused = true;
+      MissionSelectSystem.show('list');
+      MissionSelectSystem.view = 'error';
+      MissionSelectSystem.errorMessage = String(result.error || 'Erro desconhecido');
+      return;
+    }
+    this.beginMission(result.level);
+  },
+
+  /**
+   * Inicia gameplay da missão já carregada (após briefing).
+   * @param {object} level
+   */
+  beginMission(level) {
+    if (!level || !level.id) {
+      console.error('[Campaign] beginMission: level inválido');
+      this.returnToMissionSelect();
+      return;
+    }
+    MenuSystem.hide();
+    MissionSelectSystem.hide();
+    GameOverSystem.hide();
+    LevelRunner.stop();
+    LevelRunner.clearFieldEntities();
+    WaveSystem.reset();
+    this.gameOver = false;
+    this.playMode = 'campaign';
+    this.missionId = level.id;
+    this.reset();
+    this.isPaused = true;
+    this.countdownSystem.start(() => {
+      this.isPaused = false;
+      // Start runner antes da decolagem: update é bloqueado por waveIntroActive,
+      // assim o HUD já lê level/objetivos sem avançar eventos.
+      LevelRunner.start(level);
+      if (this.player && typeof this.player.startTakeoffIntro === 'function') {
+        this.waveIntroActive = true;
+        this.player.startTakeoffIntro(() => {
+          this.waveIntroActive = false;
+        });
+      }
+    }, "");
+  },
+
+  /** Reinicia a missão de campanha atual (mesmo JSON), sem reabrir briefing. */
+  _restartCampaignMission() {
+    const missionId = this.missionId || 'mission_01';
+    LevelRunner.stop();
+    LevelRunner.clearFieldEntities();
+    WaveSystem.reset();
+    MissionSelectSystem.hide();
+    this.gameOver = false;
+    this.playMode = 'campaign';
+    this.missionId = missionId;
+    this.isPaused = true;
+
+    LevelRunner.load(missionId).then((result) => {
+      if (!result.ok) {
+        console.error('[Campaign] Falha ao reiniciar missão:', result.error);
+        this.returnToMissionSelect();
+        MissionSelectSystem.view = 'error';
+        MissionSelectSystem.errorMessage = String(result.error || 'Erro desconhecido');
+        return;
+      }
+      this.beginMission(result.level);
+    });
+  },
+
+  /** Volta à seleção de missões (campanha idle). */
+  returnToMissionSelect() {
     GameOverSystem.hide();
     this.gameOver = false;
+    LevelRunner.stop();
+    LevelRunner.clearFieldEntities();
     WaveSystem.reset();
     this.enemies = [];
     this.tanks = [];
     this.projectiles = [];
     this.enemyProjectiles = [];
     this.bossActive = false;
+    this.playMode = 'campaign';
+    this.missionId = null;
+    this.isPaused = true;
+    MenuSystem.hide();
+    MissionSelectSystem.show('list');
+  },
+
+  /** Volta ao menu principal. */
+  returnToMenu() {
+    GameOverSystem.hide();
+    this.gameOver = false;
+    LevelRunner.stop();
+    LevelRunner.clearFieldEntities();
+    WaveSystem.reset();
+    MissionSelectSystem.hide();
+    this.enemies = [];
+    this.tanks = [];
+    this.projectiles = [];
+    this.enemyProjectiles = [];
+    this.bossActive = false;
+    this.playMode = 'survival';
+    this.missionId = null;
     this.isPaused = true;
     MenuSystem.show();
   },
@@ -158,21 +294,31 @@ Object.assign(game, {
   continueAfterDeath() {
     if (!this.gameOver || this.lives <= 0) return;
     GameOverSystem.hide();
-    this.reset();
     this.gameOver = false;
+    if (this.playMode === 'campaign') {
+      this._restartCampaignMission();
+      return;
+    }
+    LevelRunner.stop();
+    this.reset();
     WaveSystem.reset();
     WaveSystem.startWave(1);
   },
 
-  /** Restart completo da run (Retry / Menu do painel de game over). */
+  /** Restart completo da run (Retry do painel de game over). */
   restartRun() {
     this.lives = 3;
     this.coins = 0;
     localStorage.removeItem('shooter_tutorials_executed');
     // Mantém highScore / highWave
     GameOverSystem.hide();
-    this.reset();
     this.gameOver = false;
+    if (this.playMode === 'campaign') {
+      this._restartCampaignMission();
+      return;
+    }
+    LevelRunner.stop();
+    this.reset();
     WaveSystem.reset();
     this.isPaused = true;
     this.countdownSystem.start(() => {
@@ -239,6 +385,11 @@ Object.assign(game, {
       return;
     }
 
+    if (MissionSelectSystem.active) {
+      MissionSelectSystem.update();
+      return;
+    }
+
     if (this.gameOver) return;
     
       // Não atualiza o jogo se o player está morrendo
@@ -256,11 +407,12 @@ Object.assign(game, {
       return;
     }
     
-    // Verifica se a wave foi completada
-  
-  
-    WaveSystem.checkWaveComplete();
-    
+    if (this.playMode === 'campaign') {
+      LevelRunner.update();
+    } else {
+      WaveSystem.checkWaveComplete();
+    }
+
     this.player.update();
     game.player.targetX = null;
     game.player.targetY = null;
@@ -381,13 +533,13 @@ Object.assign(game, {
         coin.collected = true;
         this.coins += coin.value;
         
-        // Efeito visual de coleta
+        // Efeito visual de coleta (sem emoji — fillText de emoji é caro)
         this.damageTexts.push(
-          new DamageText(coin.x, coin.y - 10, `+${coin.value}⭐`, "#FFD700")
+          new DamageText(coin.x, coin.y - 10, `+${coin.value}`, "#FFD700")
         );
-        
-        // Efeito de partículas
-        for (let i = 0; i < 5; i++) {
+
+        // 3 partículas (antes 5) — pico menor ao coletar várias de uma vez
+        for (let i = 0; i < 3; i++) {
           this.particles.push(
             new ExplosionParticle(coin.x + coin.width / 2, coin.y + coin.height / 2, "#FFD700")
           );
@@ -396,123 +548,110 @@ Object.assign(game, {
     });
     this.coinsDropped = this.coinsDropped.filter((c) => !c.dead);
 
-    this.projectiles.forEach((p, pi) => {
-      this.enemies.forEach((e, ei) => {
-        if (e.isDying || e.dead) return;
+    PerfProfiler.beginCollisions();
+    // Loops indexados: splice em forEach pulava o próximo item e podia
+    // reutilizar o mesmo projétil em vários alvos no mesmo frame.
+    for (let pi = 0; pi < this.projectiles.length; pi++) {
+      const p = this.projectiles[pi];
+      let consumed = false;
+
+      for (let ei = 0; ei < this.enemies.length; ei++) {
+        const e = this.enemies[ei];
+        if (e.isDying || e.dead) continue;
         // MiniBoss tem colisão dedicada abaixo
-        if (e instanceof MiniBoss) return;
+        if (e instanceof MiniBoss) continue;
+        PerfProfiler.addCollisionChecks(1);
         const hit =
           p.x < e.x + e.width &&
           p.x + p.width > e.x &&
           p.y < e.y + e.height &&
           p.y + p.height > e.y;
-        if (hit) {
-          HitEffectManager.spawnEffect(p.x, p.y, e.hitEffect);
+        if (!hit) continue;
 
-          // Passa as coordenadas do projétil para calcular knockback
-          if (e.takeDamage && e.takeDamage(p.damage, p.x + p.width / 2, p.y + p.height / 2)) {
-            // Cria explosão no centro do inimigo
-            createExplosion(e.x + e.width / 2, e.y + e.height / 2, 0.8, 15);
-            
-            this.enemies.splice(ei, 1);
-            // const newEnemy = novoInimigoAleatorio();
-            // if (newEnemy) {
-            //     const list = Array.isArray(newEnemy) ? newEnemy : [newEnemy];
-            //     this.enemies.push(...list); // ✅ garante que só elementos individuais entram
-            // }
-            // dropOnEnemyDeath(e); // <<<<< 🎯 dropa algo aqui!
-            // 15% de chance de soltar drop
-            // DESABILITADO: Powerups foram desabilitados, agora só dropam moedas
-            // if (Math.random() < 0.75) {
-            //   const dropKeys = Object.keys(DropTypes);
-            //   const randomKey =
-            //     dropKeys[Math.floor(Math.random() * dropKeys.length)];
-            //   const dropType = DropTypes[randomKey];
-            //
-            //   this.powerUps.push(new DropInstance(e.x, e.y, dropType));
-            // }
+        HitEffectManager.spawnEffect(p.x, p.y, e.hitEffect);
 
-            // Adiciona kill ao combo e aplica multiplicador
-            this.comboSystem.addKill();
-            const points = Math.floor(10 * this.comboSystem.multiplier);
-            this.score += points;
-            
-            // Dropa moeda (30% de chance) - respeitando limite
-            if (Math.random() < 0.3 && this.coinsDropped.length < MAX_COINS_ON_SCREEN) {
-              this.coinsDropped.push(new CoinDrop(e.x, e.y, 1));
-            }
-            
-            // Dropa vida (10% de chance)
-            if (Math.random() < 0.1) {
-              this.powerUps.push(new PowerUp(e.x, e.y));
-            }
-            
-            // Mostra pontos ganhos (com combo)
-            if (points > 10) {
-              this.damageTexts.push(
-                new DamageText(e.x, e.y - 20, `+${points}`, "yellow")
-              );
-            }
+        if (e.takeDamage && e.takeDamage(p.damage, p.x + p.width / 2, p.y + p.height / 2)) {
+          createExplosion(e.x + e.width / 2, e.y + e.height / 2, 0.8, 15);
+          this.enemies.splice(ei, 1);
+
+          this.comboSystem.addKill();
+          const points = Math.floor(10 * this.comboSystem.multiplier);
+          this.score += points;
+
+          if (Math.random() < 0.3 && this.coinsDropped.length < MAX_COINS_ON_SCREEN) {
+            this.coinsDropped.push(new CoinDrop(e.x, e.y, 1));
           }
-          this.projectiles.splice(pi, 1);
-          this.damageTexts.push(
-            new DamageText(e.x, e.y, "-" + p.damage.toFixed(2), "orange")
-          );
-        }
-      });
 
-      this.tanks.forEach((t, ti) => {
+          if (Math.random() < 0.1) {
+            this.powerUps.push(new PowerUp(e.x, e.y));
+          }
+
+          if (points > 10) {
+            this.damageTexts.push(
+              new DamageText(e.x, e.y - 20, `+${points}`, "yellow")
+            );
+          }
+        }
+        this.projectiles.splice(pi, 1);
+        pi--;
+        this.damageTexts.push(
+          new DamageText(e.x, e.y, "-" + p.damage.toFixed(2), "orange")
+        );
+        consumed = true;
+        break; // 1 alvo por projétil (prioridade: inimigos antes de tanks)
+      }
+
+      if (consumed) continue;
+
+      for (let ti = 0; ti < this.tanks.length; ti++) {
+        const t = this.tanks[ti];
+        PerfProfiler.addCollisionChecks(1);
         const hit =
           p.x < t.x + t.width &&
           p.x + p.width > t.x &&
           p.y < t.y + t.height &&
           p.y + p.height > t.y;
-        if (hit) {
-          for (let i = 0; i < 6; i++) {
-            HitEffectManager.spawnEffect(t.x, t.y, t.hitEffect);
-          }
-          // Passa as coordenadas do projétil para calcular knockback
-          if (t.takeDamage && t.takeDamage(p.damage, p.x + p.width / 2, p.y + p.height / 2)) {
-            // Cria explosão maior para tank
-            createExplosion(t.x + t.width / 2, t.y + t.height / 2, 1.5, 30);
-            
-            this.tanks.splice(ti, 1);
-            // this.tanks.push(new Tank(canvas.width + Math.random() * 400));
-            
-            // Adiciona kill ao combo e aplica multiplicador
-            this.comboSystem.addKill();
-            const points = Math.floor(20 * this.comboSystem.multiplier); // Tanks valem 20 pontos
-            this.score += points;
-            
-            // Dropa moedas (tanks sempre dropam 2-5 moedas)
-            const coinCount = Math.floor(Math.random() * 4) + 2;
-            for (let i = 0; i < coinCount && this.coinsDropped.length < MAX_COINS_ON_SCREEN; i++) {
-              const offsetX = (Math.random() - 0.5) * 40;
-              const offsetY = (Math.random() - 0.5) * 40;
-              this.coinsDropped.push(new CoinDrop(t.x + offsetX, t.y + offsetY, 2));
-            }
-            
-            // Dropa vida (25% de chance para tanks)
-            if (Math.random() < 0.25) {
-              this.powerUps.push(new PowerUp(t.x, t.y));
-            }
-            
-            // Mostra pontos ganhos (com combo)
-            if (points > 20) {
-              this.damageTexts.push(
-                new DamageText(t.x, t.y - 20, `+${points}`, "yellow")
-              );
-            }
-          }
-          this.projectiles.splice(pi, 1);
-          this.damageTexts.push(
-            new DamageText(t.x, t.y, "-" + p.damage.toFixed(2), "orange")
-          );
+        if (!hit) continue;
+
+        for (let i = 0; i < 6; i++) {
+          HitEffectManager.spawnEffect(t.x, t.y, t.hitEffect);
         }
-      });
-    });
+        if (t.takeDamage && t.takeDamage(p.damage, p.x + p.width / 2, p.y + p.height / 2)) {
+          createExplosion(t.x + t.width / 2, t.y + t.height / 2, 1.5, 30);
+          this.tanks.splice(ti, 1);
+
+          this.comboSystem.addKill();
+          const points = Math.floor(20 * this.comboSystem.multiplier);
+          this.score += points;
+
+          const coinCount = Math.floor(Math.random() * 4) + 2;
+          for (let i = 0; i < coinCount && this.coinsDropped.length < MAX_COINS_ON_SCREEN; i++) {
+            const offsetX = (Math.random() - 0.5) * 40;
+            const offsetY = (Math.random() - 0.5) * 40;
+            this.coinsDropped.push(new CoinDrop(t.x + offsetX, t.y + offsetY, 2));
+          }
+
+          if (Math.random() < 0.25) {
+            this.powerUps.push(new PowerUp(t.x, t.y));
+          }
+
+          if (points > 20) {
+            this.damageTexts.push(
+              new DamageText(t.x, t.y - 20, `+${points}`, "yellow")
+            );
+          }
+        }
+        this.projectiles.splice(pi, 1);
+        pi--;
+        this.damageTexts.push(
+          new DamageText(t.x, t.y, "-" + p.damage.toFixed(2), "orange")
+        );
+        break;
+      }
+    }
 
     for (let p of this.enemyProjectiles) {
+      PerfProfiler.addCollisionChecks(1);
       const hit =
         p.x < this.player.x + this.player.width &&
         p.x + p.width > this.player.x &&
@@ -533,6 +672,8 @@ Object.assign(game, {
         this.enemyProjectiles = this.enemyProjectiles.filter(
           (ep) => ep !== p
         );
+        // Early return legado — fecha o timer de colisões do profiler
+        PerfProfiler.endCollisions();
         return;
       }
     }
@@ -543,6 +684,7 @@ Object.assign(game, {
       ...(this.miniBoss ? [this.miniBoss] : []),
     ].forEach((e) => {
       if (e.isDying || e.dead) return;
+      PerfProfiler.addCollisionChecks(1);
       const hit =
         this.player.x < e.x + e.width &&
         this.player.x + this.player.width > e.x &&
@@ -627,26 +769,29 @@ Object.assign(game, {
       this.bossActive = true;
 
       if (!miniBossInEnemies.isDying) {
-        this.projectiles.forEach((p, pi) => {
-          const b = miniBossInEnemies;
+        const b = miniBossInEnemies;
+        for (let pi = 0; pi < this.projectiles.length; pi++) {
+          const p = this.projectiles[pi];
+          PerfProfiler.addCollisionChecks(1);
           const hit =
             p.x < b.x + b.width &&
             p.x + p.width > b.x &&
             p.y < b.y + b.height &&
             p.y + p.height > b.y;
-          if (hit) {
-            HitEffectManager.spawnEffect(p.x, p.y, b.hitEffect, 1.5);
-            b.takeDamage(p.damage, p.x + p.width / 2, p.y + p.height / 2);
-            this.projectiles.splice(pi, 1);
-            this.damageTexts.push(
-              new DamageText(b.x, b.y, "-" + p.damage.toFixed(2), "orange")
-            );
-          }
-        });
+          if (!hit) continue;
+          HitEffectManager.spawnEffect(p.x, p.y, b.hitEffect, 1.5);
+          b.takeDamage(p.damage, p.x + p.width / 2, p.y + p.height / 2);
+          this.projectiles.splice(pi, 1);
+          pi--;
+          this.damageTexts.push(
+            new DamageText(b.x, b.y, "-" + p.damage.toFixed(2), "orange")
+          );
+        }
       }
     } else {
       this.bossActive = false;
     }
+    PerfProfiler.endCollisions();
 
     // Atualiza camadas de parallax e chão APENAS quando:
     // - Modo PLANE (sempre se move)
@@ -681,59 +826,56 @@ Object.assign(game, {
       return;
     }
 
-    this.drawBackground();
-    
-    // Desenha player normal ou animação de morte
+    if (MissionSelectSystem.active) {
+      MissionSelectSystem.draw(ctx);
+      return;
+    }
+
+    // Breakdown de draw (só cronometra se debug; senão fn direta)
+    PerfProfiler.timeDraw('parallax', () => {
+      this.drawBackground();
+    });
+
+    // Player / powerups / textos — entram em drawParts.other (resto)
     if (this.player.isDying) {
       this.player.drawDeath();
     } else {
-    this.player.draw();
+      this.player.draw();
     }
-    
-    this.projectiles.forEach((p) => p.draw());
-    this.enemyProjectiles.forEach((p) => p.draw());
-    this.enemies.forEach((e) => e.draw());
-    this.tanks.forEach((t) => t.draw());
+
+    PerfProfiler.timeDraw('projectiles', () => {
+      this.projectiles.forEach((p) => p.draw());
+      this.enemyProjectiles.forEach((p) => p.draw());
+    });
+
+    // Ordem de draw preservada (inimigos antes dos tanks; MiniBoss depois, perto das particles)
+    PerfProfiler.timeDraw('enemies', () => {
+      this.enemies.forEach((e) => e.draw());
+    });
+
+    PerfProfiler.timeDraw(
+      'tanks',
+      () => {
+        this.tanks.forEach((t) => t.draw());
+      },
+      { tankCount: this.tanks.length }
+    );
+
     this.powerUps.forEach((p) => p.draw());
-    this.coinsDropped.forEach((c) => c.draw(ctx));
+    PerfProfiler.timeDraw('coins', () => {
+      this.coinsDropped.forEach((c) => c.draw(ctx));
+    });
     this.damageTexts.forEach((dt) => dt.draw());
 
-    // HUD frames (canvas) — layout da referência
-    HudSystem.draw(ctx);
+    PerfProfiler.timeDraw('hud', () => {
+      HudSystem.draw(ctx);
+    });
 
     // Joystick flutuante (por cima do jogo; some em pause/game over)
     if (!this.gameOver && !this.isPaused) {
       JoystickSystem.draw(ctx);
     } else if (JoystickSystem.active) {
       JoystickSystem.end();
-    }
-
-    // Informações de debug (só exibe se debug estiver ativo)
-    if (this.debug) {
-      ctx.fillStyle = "black";
-      ctx.font = "14px Arial";
-      ctx.textAlign = "left";
-      ctx.fillText(
-        "Enemies: " + this.enemies.length,
-        canvas.width - 150,
-        30
-      );
-      ctx.fillText(
-        "Projectiles: " + this.projectiles.length,
-        canvas.width - 150,
-        50
-      );
-      ctx.fillText("FPS: " + this.fps, canvas.width - 150, 70);
-      ctx.fillText(
-        "Damage: " + this.player.primaryWeapon.damage,
-        canvas.width - 150,
-        90
-      );
-      ctx.fillText(
-        "Cooldown: " + this.player.primaryWeapon.cooldown,
-        canvas.width - 150,
-        110
-      );
     }
 
     // Desenha o countdown (por cima de tudo)
@@ -756,7 +898,7 @@ Object.assign(game, {
       ctx.fillText(text, canvas.width / 2, canvas.height / 2);
     }
 
-    if (this.showingWaveText) {
+    if (this.showingWaveText && this.playMode !== 'campaign') {
       ctx.fillStyle = "white";
       ctx.font = "28px monospace";
       ctx.textAlign = "center";
@@ -767,9 +909,18 @@ Object.assign(game, {
       }
     }
 
-    if (this.miniBoss) this.miniBoss.draw();
-    game.particles.forEach((p) => p.draw(ctx));
-    if (!this.player.airborne && !this.gameOver && !MenuSystem.active) {
+    // MiniBoss no array enemies já foi desenhado acima; this.miniBoss é legado
+    PerfProfiler.timeDraw('enemies', () => {
+      if (this.miniBoss && !this.enemies.includes(this.miniBoss)) {
+        this.miniBoss.draw();
+      }
+    });
+
+    PerfProfiler.timeDraw('particles', () => {
+      game.particles.forEach((p) => p.draw(ctx));
+    });
+
+    if (!this.player.airborne && !this.gameOver && !MenuSystem.active && !MissionSelectSystem.active) {
       const L = HudSystem.layout || HudSystem.computeLayout();
       const tipY = (L.weapon?.y ?? 0) + (L.weapon?.h ?? 0) + 22;
       ctx.font = "16px Arial";
@@ -796,6 +947,11 @@ Object.assign(game, {
 
       // Painel die (vidas > 0) ou game over (vidas = 0)
       GameOverSystem.draw(ctx);
+    }
+
+    // Overlay por último (não entra no breakdown de gameplay)
+    if (this.debug) {
+      PerfProfiler.draw(ctx, canvas);
     }
   },
 
@@ -830,8 +986,11 @@ Object.assign(game, {
   },
 
   loop(timestamp) {
+    PerfProfiler.beginFrame(timestamp);
     const delta = timestamp - this.lastFrameTime;
     if (delta >= 1000 / this.fps) {
+      PerfProfiler.beginJsWork();
+
       // Atualiza countdown sempre (mesmo pausado)
       this.countdownSystem.update();
       
@@ -847,18 +1006,33 @@ Object.assign(game, {
         // Atualiza partículas de explosão
         game.particles = game.particles.filter((p) => !p.dead);
         game.particles.forEach((p) => p.update());
-      } else if (MenuSystem.active) {
+      } else if (MenuSystem.active || MissionSelectSystem.active) {
+        PerfProfiler.beginUpdate();
         this.update();
+        PerfProfiler.endUpdate();
       } else if (this.waveIntroActive && !this.gameOver) {
         // Decolagem no início da wave (roda mesmo com lógica de pause lateral)
+        PerfProfiler.beginUpdate();
         this.update();
+        PerfProfiler.endUpdate();
       } else if (!this.isPaused && !this.gameOver) {
         // Só atualiza o resto se não estiver pausado, não estiver morrendo e não for game over
-      this.update();
+        PerfProfiler.beginUpdate();
+        this.update();
+        PerfProfiler.endUpdate();
       }
+
+      PerfProfiler.sampleEntityCounts(this);
+      PerfProfiler.counts.wave = WaveSystem.currentWave || 0;
+
       // Sempre desenha (para mostrar o estado pausado)
+      PerfProfiler.beginDraw();
       this.draw();
+      PerfProfiler.endDraw();
+
+      PerfProfiler.endJsWork();
       this.lastFrameTime = timestamp;
+      PerfProfiler.endFrame();
     }
     requestAnimationFrame((ts) => this.loop(ts));
   },

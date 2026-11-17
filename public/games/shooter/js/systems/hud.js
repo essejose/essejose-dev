@@ -2,6 +2,7 @@ import { canvas, screenToCanvas } from '../core/canvas.js';
 import { IMAGES } from '../core/assets.js';
 import { ShopSystem } from './shop.js';
 import { WaveSystem } from './waves.js';
+import { LevelRunner } from './levelRunner.js';
 import { game } from '../game/state.js';
 
 /** Cor de fundo dos painéis (para cobrir números estáticos dos PNGs) */
@@ -393,6 +394,52 @@ const HudSystem = {
     ctx.strokeRect(barX, barY, barW, barH);
   },
 
+  /** Painel central da campanha (substitui WAVE). */
+  drawMissionPanel(ctx, box) {
+    const { x, y, w, h } = box;
+    const level = LevelRunner.level;
+    const num = level?.number ?? 1;
+    const name = level?.name || game.missionId || 'Missão';
+
+    ctx.fillStyle = 'rgba(8, 16, 32, 0.78)';
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = 'rgba(255, 220, 120, 0.75)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `bold ${Math.floor(h * 0.32)}px monospace`;
+    this.strokeFillText(
+      ctx,
+      `MISSÃO ${String(num).padStart(2, '0')}`,
+      x + w / 2,
+      y + h * 0.34,
+      '#FFD600',
+      '#000',
+      3
+    );
+
+    let objective = name;
+    const primary = level?.objectives?.primary;
+    if (Array.isArray(primary) && primary.length) {
+      const pending = primary.find((o) => {
+        if (o.type === 'eliminate' && o.tag) {
+          return !LevelRunner.defeatedAt?.has(o.tag);
+        }
+        return true;
+      });
+      const cur = pending || primary[primary.length - 1];
+      objective = cur.label || cur.id || name;
+    }
+    const maxChars = Math.max(12, Math.floor(w / 9));
+    if (objective.length > maxChars) {
+      objective = `${objective.slice(0, maxChars - 1)}…`;
+    }
+    ctx.font = `bold ${Math.floor(h * 0.22)}px sans-serif`;
+    this.strokeFillText(ctx, objective, x + w / 2, y + h * 0.68, '#c5d4de', '#000', 2);
+  },
+
   drawCoinsPanel(ctx, box) {
     const { x, y, w, h } = box;
     // Número após o ícone, com margem à direita do painel
@@ -465,7 +512,6 @@ const HudSystem = {
     const L = this.computeLayout();
     this.drawImage(ctx, 'hudScore', L.score);
     this.drawImage(ctx, 'hudWeapon', L.weapon);
-    this.drawImage(ctx, 'hudWave', L.wave);
     this.drawCoinsImage(ctx, L.coins);
     this.drawImage(ctx, 'hudShop', L.shop);
 
@@ -473,8 +519,14 @@ const HudSystem = {
     this.drawScorePanel(ctx, L.score);
     this.drawWeaponPanel(ctx, L.weapon);
     this.drawAuxWeapons(ctx, L.weapon);
-    this.drawWavePanel(ctx, L.wave);
     this.drawCoinsPanel(ctx, L.coins);
+
+    if (game.playMode === 'campaign') {
+      this.drawMissionPanel(ctx, L.wave);
+    } else {
+      this.drawImage(ctx, 'hudWave', L.wave);
+      this.drawWavePanel(ctx, L.wave);
+    }
 
     // Combo só aparece com combo ativo
     if ((game.comboSystem?.combo || 0) > 0) {
@@ -493,7 +545,9 @@ const HudSystem = {
   _lastShopTapAt: 0,
 
   tryOpenShop(canvasX, canvasY) {
-    if (game.gameOver || window.MenuSystem?.active) return false;
+    if (game.gameOver || window.MenuSystem?.active || window.MissionSelectSystem?.active) {
+      return false;
+    }
     if (ShopSystem.isOpen) return false;
     if (!this.hitShop(canvasX, canvasY)) return false;
     const now = performance.now();

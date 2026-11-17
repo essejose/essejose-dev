@@ -1,6 +1,11 @@
 import { canvas } from "./canvas.js";
 import { CONTROLSMODES } from "./input.js";
 
+/**
+ * Camada de parallax com tile horizontal.
+ * Otimização: cache offscreen pré-escalado (rebuild só no resize / troca de escala).
+ * Draw faz blit 1:1 — evita reescalar a PNG fonte a cada frame.
+ */
 export class ParallaxLayer {
   /**
    * @param {HTMLImageElement} image
@@ -15,6 +20,10 @@ export class ParallaxLayer {
     this.y = y;
     this.alpha = alpha;
     this.x = 0; // offset de scroll (normalizado em update/draw)
+    /** @type {HTMLCanvasElement|null} */
+    this._cache = null;
+    this._cacheW = 0;
+    this._cacheH = 0;
     this.updateScale();
   }
 
@@ -30,8 +39,9 @@ export class ParallaxLayer {
     const oldWidth = this.scaledWidth || 0;
     this.scaleX = scale;
     this.scaleY = scale;
-    this.scaledWidth = this.image.width * scale;
-    this.scaledHeight = this.image.height * scale;
+    // Inteiros: alinhamento de tile + tamanho do cache offscreen
+    this.scaledWidth = Math.max(1, Math.round(this.image.width * scale));
+    this.scaledHeight = Math.max(1, Math.round(this.image.height * scale));
 
     // Preserva posição relativa do scroll ao redimensionar
     if (oldWidth > 0 && Number.isFinite(this.x)) {
@@ -40,6 +50,36 @@ export class ParallaxLayer {
       this.x = 0;
     }
     this._normalizeX();
+    this._rebuildCache();
+  }
+
+  /**
+   * Rasteriza a imagem fonte uma vez na escala atual.
+   * Custo de memória: ~scaledW×scaledH×4 bytes por camada (reutilizado entre frames).
+   */
+  _rebuildCache() {
+    if (!this.image?.complete || !this.image.width || !this.scaledWidth) return;
+
+    const w = this.scaledWidth;
+    const h = this.scaledHeight;
+
+    if (!this._cache) {
+      this._cache = document.createElement("canvas");
+    }
+
+    // Só realoca buffer se o tamanho mudou
+    if (this._cacheW !== w || this._cacheH !== h) {
+      this._cache.width = w;
+      this._cache.height = h;
+      this._cacheW = w;
+      this._cacheH = h;
+    }
+
+    const c = this._cache.getContext("2d");
+    c.imageSmoothingEnabled = true;
+    c.imageSmoothingQuality = "high";
+    c.clearRect(0, 0, w, h);
+    c.drawImage(this.image, 0, 0, w, h);
   }
 
   /** Mantém x em [-scaledWidth, 0) para o loop de tiles começar à esquerda da tela. */
@@ -62,29 +102,34 @@ export class ParallaxLayer {
   }
 
   draw(drawCtx) {
-    if (!this.image || !this.image.complete || !this.scaledWidth) return;
+    if (!this.image || !this.image.complete) return;
+
+    // Imagem carregou depois do construct / resize sem pixels ainda
+    if (!this._cache || this._cacheW !== this.scaledWidth) {
+      if (!this.scaledWidth) this.updateScale();
+      else this._rebuildCache();
+    }
+    if (!this._cache || !this.scaledWidth) return;
 
     this._normalizeX();
 
-    drawCtx.save();
+    const w = this.scaledWidth;
+    const viewW = canvas.width;
+    const y = this.y;
+    const cache = this._cache;
+
+    // Evita save/restore — só troca alpha
+    const prevAlpha = drawCtx.globalAlpha;
     drawCtx.globalAlpha = this.alpha;
 
-    // Desenha tiles suficientes para cobrir toda a largura do canvas
-    for (
-      let drawX = this.x;
-      drawX < canvas.width;
-      drawX += this.scaledWidth
-    ) {
-      drawCtx.drawImage(
-        this.image,
-        drawX,
-        this.y,
-        this.scaledWidth,
-        this.scaledHeight
-      );
+    // Tiles que intersectam [0, viewW); x ∈ [-w, 0)
+    for (let drawX = this.x; drawX < viewW; drawX += w) {
+      if (drawX + w <= 0) continue;
+      // Blit 1:1 (sem reescalar a PNG fonte)
+      drawCtx.drawImage(cache, drawX, y);
     }
 
-    drawCtx.restore();
+    drawCtx.globalAlpha = prevAlpha;
   }
 
   reset() {
